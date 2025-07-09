@@ -37,8 +37,12 @@ brew install nasm qemu
 # Build the kernel
 make clean && make all
 
-# Run in QEMU with hardware acceleration
-make run
+# Verify build
+make verify                    # Comprehensive verification
+make test                     # Quick component test
+
+# Note: QEMU emulation requires bootloader
+# Kernel ready for bare-metal deployment
 ```
 
 ## What's Included

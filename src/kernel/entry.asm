@@ -1,10 +1,33 @@
 ; TradeKernel - 64-bit kernel entry point
 ; This is the first code that runs after the bootloader switches to long mode
 
+[BITS 32]
+section .multiboot
+
+; Multiboot2 header for QEMU compatibility
+MULTIBOOT2_MAGIC equ 0xE85250D6
+ARCH_I386 equ 0
+HEADER_LENGTH equ multiboot_end - multiboot_start
+CHECKSUM equ -(MULTIBOOT2_MAGIC + ARCH_I386 + HEADER_LENGTH)
+
+align 8
+multiboot_start:
+    dd MULTIBOOT2_MAGIC
+    dd ARCH_I386
+    dd HEADER_LENGTH
+    dd CHECKSUM
+    
+    ; End tag
+    dw 0    ; type
+    dw 0    ; flags
+    dd 8    ; size
+multiboot_end:
+
 [BITS 64]
 section .text
 
 global kernel_main
+global _start
 global context_switch_asm
 global task_entry_point_asm
 global get_cpu_id
@@ -12,7 +35,8 @@ global set_task_stack
 
 extern cpp_kernel_main
 
-; Kernel entry point from bootloader
+; Alternative entry points
+_start:
 kernel_main:
     ; Set up initial stack
     mov rsp, kernel_stack_top

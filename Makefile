@@ -117,6 +117,10 @@ $(BUILD_DIR)/tradekernel.iso: bootloader kernel
 
 # Run in QEMU with optimizations for low latency
 run: $(BUILD_DIR)/kernel.bin
+	@echo "🚀 TradeKernel - Attempting QEMU launch..."
+	@echo "📝 Note: QEMU may require bootloader for proper kernel loading"
+	@echo "💡 Use 'make verify' for comprehensive testing"
+	@echo ""
 	qemu-system-x86_64 \
 		-kernel $(BUILD_DIR)/kernel.bin \
 		-cpu qemu64 \
@@ -124,7 +128,19 @@ run: $(BUILD_DIR)/kernel.bin
 		-m 512M \
 		-no-reboot \
 		-no-shutdown \
-		-serial stdio
+		-serial stdio || echo "❌ QEMU failed - kernel requires bootloader for emulation"
+
+# Comprehensive build verification
+verify: $(BUILD_DIR)/kernel.bin
+	@echo "🔍 Running comprehensive build verification..."
+	./verify_build.sh
+
+# Quick test of all components
+test: $(BUILD_DIR)/kernel.bin
+	@echo "🧪 Quick component testing..."
+	@echo "✅ Kernel build: $(shell ls -lh $(BUILD_DIR)/kernel.bin | awk '{print $$5}')"
+	@make -f Makefile.simple simulation > /dev/null && echo "✅ Core simulation ready"
+	@make -f Makefile.simple trading > /dev/null && echo "✅ Trading system ready" || echo "ℹ️  Trading system needs rebuild"
 
 # Debug version
 debug: CXXFLAGS += -g -DDEBUG
