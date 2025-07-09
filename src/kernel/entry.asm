@@ -3,6 +3,7 @@
 
 [BITS 32]
 section .multiboot
+align 8
 
 ; Multiboot2 header for QEMU compatibility
 MULTIBOOT2_MAGIC equ 0xE85250D6
@@ -10,36 +11,64 @@ ARCH_I386 equ 0
 HEADER_LENGTH equ multiboot_end - multiboot_start
 CHECKSUM equ -(MULTIBOOT2_MAGIC + ARCH_I386 + HEADER_LENGTH)
 
-align 8
 multiboot_start:
     dd MULTIBOOT2_MAGIC
     dd ARCH_I386
     dd HEADER_LENGTH
     dd CHECKSUM
     
+    ; Address tag
+    align 8
+    dw 2                ; type - address tag
+    dw 0                ; flags
+    dd 24               ; size
+    dd multiboot_start  ; header_addr
+    dd _start           ; load_addr
+    dd _end             ; load_end_addr
+    dd _bss_end         ; bss_end_addr
+    
     ; Entry address tag (for QEMU)
-    dw 3        ; type = entry address
-    dw 0        ; flags
-    dd 12       ; size
-    dd _start   ; entry point
+    align 8
+    dw 3                ; type = entry address
+    dw 0                ; flags
+    dd 12               ; size
+    dd _start           ; entry point
     
     ; End tag
-    dw 0    ; type
-    dw 0    ; flags
-    dd 8    ; size
+    align 8
+    dw 0                ; type
+    dw 0                ; flags
+    dd 8                ; size
 multiboot_end:
 
+; Note section for PVH boot protocol required by QEMU
+section .note.gnu.build-id
+align 4
+    dd 4                ; name size
+    dd 20               ; desc size
+    dd 3                ; type (NT_GNU_BUILD_ID)
+    db "GNU", 0         ; name
+    times 20 db 0       ; build-id placeholder
+
+section .note
+align 4
+    dd 4                ; name size
+    dd 4                ; desc size
+    dd 18               ; type (XEN_ELFNOTE_PHYS32_ENTRY)
+    db "Xen", 0         ; name
+    dd _start           ; desc (entry point)
+    
+; Add another .note.* section specifically for QEMU's PVH check
 section .note.gnu.property
 align 8
-    ; PVH ELF note for QEMU direct kernel boot
-    dd 4                ; namesz
-    dd 16               ; descsz  
-    dd 5                ; type = NT_GNU_PROPERTY_TYPE_0
+    dd 4                ; name size
+    dd 16               ; desc size
+    dd 5                ; type (GNU_PROPERTY_TYPE_0)
     db "GNU", 0         ; name
     align 8
-    dd 0xc0000002       ; pr_type = GNU_PROPERTY_X86_FEATURE_1_AND
-    dd 4                ; pr_datasz
-    dd 3                ; GNU_PROPERTY_X86_FEATURE_1_IBT | GNU_PROPERTY_X86_FEATURE_1_SHSTK
+    dd 0xc0000002       ; GNU_PROPERTY_X86_FEATURE_1_AND
+    dd 4                ; data size
+    dd 1                ; GNU_PROPERTY_X86_FEATURE_1_SHSTK
     dd 0                ; padding
 
 [BITS 64]
@@ -298,5 +327,12 @@ network_interrupt_handler:
     iretq
 
 section .bss
+align 16
+global _bss_start
+_bss_start:
     resb 8192               ; 8KB kernel stack
 kernel_stack_top:
+global _end
+_end:
+global _bss_end
+_bss_end:

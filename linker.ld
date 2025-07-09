@@ -2,12 +2,29 @@
  * Optimized memory layout for ultra-low latency execution
  */
 
-ENTRY(kernel_main)
+ENTRY(_start)
 
 SECTIONS
 {
     /* Kernel starts at 1MB physical address */
     . = 0x100000;
+    
+    /* Multiboot2 header must be early in the image */
+    .multiboot ALIGN(4K) : {
+        *(.multiboot)
+    }
+    
+    /* Notes sections for QEMU compatibility */
+    .note.gnu.build-id : {
+        *(.note.gnu.build-id)
+    }
+    .note : {
+        *(.note)
+        *(.note.*)
+    }
+    .note.gnu.property : {
+        *(.note.gnu.property)
+    }
     
     /* Code section - hot path code first */
     .text ALIGN(4K) : {
@@ -18,7 +35,7 @@ SECTIONS
         *(.text.likely)
         
         /* Entry point */
-        *(.text.startup)
+        KEEP(*(.text.startup))
         
         /* Main kernel code */
         *(.text)
