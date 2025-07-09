@@ -17,11 +17,30 @@ multiboot_start:
     dd HEADER_LENGTH
     dd CHECKSUM
     
+    ; Entry address tag (for QEMU)
+    dw 3        ; type = entry address
+    dw 0        ; flags
+    dd 12       ; size
+    dd _start   ; entry point
+    
     ; End tag
     dw 0    ; type
     dw 0    ; flags
     dd 8    ; size
 multiboot_end:
+
+section .note.gnu.property
+align 8
+    ; PVH ELF note for QEMU direct kernel boot
+    dd 4                ; namesz
+    dd 16               ; descsz  
+    dd 5                ; type = NT_GNU_PROPERTY_TYPE_0
+    db "GNU", 0         ; name
+    align 8
+    dd 0xc0000002       ; pr_type = GNU_PROPERTY_X86_FEATURE_1_AND
+    dd 4                ; pr_datasz
+    dd 3                ; GNU_PROPERTY_X86_FEATURE_1_IBT | GNU_PROPERTY_X86_FEATURE_1_SHSTK
+    dd 0                ; padding
 
 [BITS 64]
 section .text

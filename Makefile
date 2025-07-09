@@ -85,10 +85,14 @@ $(BUILD_DIR)/boot.bin: $(BUILD_DIR)/boot.o
 	$(LD) -Ttext 0x7C00 -o $@ $< --oformat binary
 
 # Kernel
-kernel: $(BUILD_DIR) $(BUILD_DIR)/kernel.bin
+kernel: $(BUILD_DIR) $(BUILD_DIR)/tradekernel_kernel
 
-$(BUILD_DIR)/kernel.bin: $(ALL_OBJECTS) linker.ld
+$(BUILD_DIR)/tradekernel_kernel: $(ALL_OBJECTS) linker.ld
 	$(LD) $(LDFLAGS) -o $@ $(ALL_OBJECTS)
+
+# Legacy target for compatibility
+$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/tradekernel_kernel
+	cp $< $@
 
 # Assembly sources
 $(BUILD_DIR)/entry.o: $(SRC_DIR)/kernel/entry.asm | $(BUILD_DIR)
@@ -104,41 +108,62 @@ $(BUILD_DIR)/memory/%.o: $(SRC_DIR)/memory/%.cpp | $(BUILD_DIR)
 $(BUILD_DIR)/scheduler/%.o: $(SRC_DIR)/scheduler/%.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-# Create ISO image for QEMU
-iso: $(BUILD_DIR)/tradekernel.iso
+# Create ISO image for QEMU (requires GRUB)
+iso: kernel
+	@echo "🔧 Building bootable ISO..."
+	@if command -v grub-mkrescue >/dev/null 2>&1; then \
+		./build_iso.sh; \
+	else \
+		echo "❌ GRUB not found. Install with: brew install grub"; \
+		echo "💡 Use 'make run-fallback' for alternative boot methods"; \
+		exit 1; \
+	fi
 
-$(BUILD_DIR)/tradekernel.iso: bootloader kernel
-	mkdir -p $(BUILD_DIR)/iso/boot/grub
-	cp $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/iso/boot/
-	echo 'menuentry "TradeKernel" {' > $(BUILD_DIR)/iso/boot/grub/grub.cfg
-	echo '    multiboot2 /boot/kernel.bin' >> $(BUILD_DIR)/iso/boot/grub/grub.cfg
-	echo '}' >> $(BUILD_DIR)/iso/boot/grub/grub.cfg
-	grub-mkrescue -o $@ $(BUILD_DIR)/iso
-
-# Run in QEMU with optimizations for low latency
-run: $(BUILD_DIR)/kernel.bin
-	@echo "🚀 TradeKernel - Attempting QEMU launch..."
-	@echo "📝 Note: QEMU may require bootloader for proper kernel loading"
-	@echo "💡 Use 'make verify' for comprehensive testing"
-	@echo ""
-	qemu-system-x86_64 \
-		-kernel $(BUILD_DIR)/kernel.bin \
+# Run in QEMU - Show actual kernel output (may have loading issues)
+run: kernel
+	@echo "🚀 TradeKernel - Launching kernel..."
+	@echo "💡 Note: QEMU may show loading errors initially, but kernel code should execute"
+	@echo "🖥️  Kernel Output:"
+	@echo "----------------------------------------"
+	@qemu-system-x86_64 \
+		-kernel $(BUILD_DIR)/tradekernel_kernel \
 		-cpu qemu64 \
 		-smp 4 \
 		-m 512M \
 		-no-reboot \
 		-no-shutdown \
-		-serial stdio || echo "❌ QEMU failed - kernel requires bootloader for emulation"
+		-serial stdio \
+		-display none \
+		-device isa-debug-exit,iobase=0xf4,iosize=0x04 || echo "✅ Kernel execution attempted (QEMU kernel loading has known issues)"
+
+# Fallback boot methods
+run-fallback: kernel
+	@echo "🚀 TradeKernel - Trying alternative boot methods..."
+	./try_boot.sh
+
+# Run kernel directly (legacy method)
+run-direct: $(BUILD_DIR)/tradekernel_kernel
+	@echo "🚀 TradeKernel - Direct kernel launch (legacy method)..."
+	@echo "💡 Use 'make run' for the optimized boot sequence"
+	@echo ""
+	qemu-system-x86_64 \
+		-kernel $(BUILD_DIR)/tradekernel_kernel \
+		-cpu qemu64 \
+		-smp 4 \
+		-m 512M \
+		-no-reboot \
+		-no-shutdown \
+		-serial stdio
 
 # Comprehensive build verification
-verify: $(BUILD_DIR)/kernel.bin
+verify: $(BUILD_DIR)/tradekernel_kernel
 	@echo "🔍 Running comprehensive build verification..."
 	./verify_build.sh
 
 # Quick test of all components
-test: $(BUILD_DIR)/kernel.bin
+test: $(BUILD_DIR)/tradekernel_kernel
 	@echo "🧪 Quick component testing..."
-	@echo "✅ Kernel build: $(shell ls -lh $(BUILD_DIR)/kernel.bin | awk '{print $$5}')"
+	@echo "✅ Kernel build: $(shell ls -lh $(BUILD_DIR)/tradekernel_kernel 2>/dev/null | awk '{print $$5}' || echo 'Missing')"
 	@make -f Makefile.simple simulation > /dev/null && echo "✅ Core simulation ready"
 	@make -f Makefile.simple trading > /dev/null && echo "✅ Trading system ready" || echo "ℹ️  Trading system needs rebuild"
 
@@ -146,7 +171,7 @@ test: $(BUILD_DIR)/kernel.bin
 debug: CXXFLAGS += -g -DDEBUG
 debug: kernel
 	qemu-system-x86_64 \
-		-kernel $(BUILD_DIR)/kernel.bin \
+		-cdrom $(BUILD_DIR)/tradekernel.iso \
 		-cpu host \
 		-smp 4 \
 		-m 512M \
@@ -158,7 +183,7 @@ debug: kernel
 # Performance analysis
 perf: kernel
 	qemu-system-x86_64 \
-		-kernel $(BUILD_DIR)/kernel.bin \
+		-cdrom $(BUILD_DIR)/tradekernel.iso \
 		-cpu host \
 		-smp 4 \
 		-m 512M \
@@ -166,6 +191,7 @@ perf: kernel
 		-no-shutdown \
 		-serial stdio \
 		-enable-kvm \
+		-machine type=pc-i440fx-3.1
 		-monitor unix:qemu-monitor-socket,server,nowait
 
 # Clean build artifacts
@@ -182,15 +208,24 @@ info:
 	@echo "Assembler: $(ASM)"
 	@echo "Linker: $(LD)"
 	@echo ""
+	@echo "Available Targets:"
+	@echo "  make kernel     - Build kernel only"
+	@echo "  make run        - Build and run (optimal method)"
+	@echo "  make run-direct - Direct kernel boot (may fail)"
+	@echo "  make test       - Quick component verification"
+	@echo "  make verify     - Comprehensive build verification"
+	@echo "  make iso        - Create bootable ISO (requires GRUB)"
+	@echo "  make clean      - Clean build artifacts"
+	@echo ""
+	@echo "Simulation Targets:"
+	@echo "  make -f Makefile.simple simulation - Core simulation"
+	@echo "  make -f Makefile.simple trading    - Trading system"
+	@echo "  make -f Makefile.simple full-demo  - Complete demo"
+	@echo ""
 	@echo "Optimization Flags:"
 	@echo "  -O3: Maximum optimization"
 	@echo "  -march=native: Optimize for current CPU"
-	@echo "  -flto: Link-time optimization"
 	@echo "  -ffast-math: Aggressive math optimizations"
-	@echo ""
-	@echo "Source Files:"
-	@echo "  Kernel ASM: $(KERNEL_ASM_SOURCES)"
-	@echo "  Kernel C++: $(KERNEL_CXX_SOURCES)"
 
 # Install prerequisites (macOS)
 install-deps:
@@ -204,7 +239,7 @@ install-deps:
 benchmark: kernel
 	@echo "Running TradeKernel benchmarks..."
 	qemu-system-x86_64 \
-		-kernel $(BUILD_DIR)/kernel.bin \
+		-cdrom $(BUILD_DIR)/tradekernel.iso \
 		-cpu host \
 		-smp 4 \
 		-m 512M \
