@@ -411,10 +411,67 @@ void* operator new(size_t size) noexcept {
     return result;
 }
 
+void* operator new[](size_t size) noexcept {
+    return operator new(size);
+}
+
+void* operator new(size_t size, TradeKernel::size_t /*align*/) noexcept {
+    return operator new(size);
+}
+
+void* operator new[](size_t size, TradeKernel::size_t /*align*/) noexcept {
+    return operator new(size);
+}
+
 void operator delete(void*) noexcept {
     // No-op for now - would implement proper free list
 }
 
+void operator delete[](void*) noexcept {
+    // No-op for now
+}
+
 void operator delete(void*, size_t) noexcept {
+    // No-op for now
+}
+
+void operator delete[](void*, size_t) noexcept {
+    // No-op for now
+}
+
+void operator delete(void*, size_t, TradeKernel::size_t) noexcept {
+    // No-op for now
+}
+
+void operator delete[](void*, size_t, TradeKernel::size_t) noexcept {
+    // No-op for now
+}
+
+// Aligned new/delete operators (C++17)
+namespace std {
+    enum class align_val_t : size_t {};
+}
+
+void* operator new(size_t size, std::align_val_t) noexcept {
+    return operator new(size);
+}
+
+void* operator new[](size_t size, std::align_val_t) noexcept {
+    return operator new(size);
+}
+
+void operator delete(void*, std::align_val_t) noexcept {
+    // No-op for now
+}
+
+void operator delete[](void*, std::align_val_t) noexcept {
+    // No-op for now
+}
+
+void operator delete(void*, size_t, std::align_val_t) noexcept {
+    // No-op for now
+}
+
+void operator delete[](void*, size_t, std::align_val_t) noexcept {
     // No-op for now
 }

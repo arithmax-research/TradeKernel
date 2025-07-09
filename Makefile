@@ -91,17 +91,17 @@ $(BUILD_DIR)/kernel.bin: $(ALL_OBJECTS) linker.ld
 	$(LD) $(LDFLAGS) -o $@ $(ALL_OBJECTS)
 
 # Assembly sources
-$(BUILD_DIR)/entry.o: $(SRC_DIR)/kernel/entry.asm
+$(BUILD_DIR)/entry.o: $(SRC_DIR)/kernel/entry.asm | $(BUILD_DIR)
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 # C++ sources
-$(BUILD_DIR)/kernel/%.o: $(SRC_DIR)/kernel/%.cpp
+$(BUILD_DIR)/kernel/%.o: $(SRC_DIR)/kernel/%.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(BUILD_DIR)/memory/%.o: $(SRC_DIR)/memory/%.cpp
+$(BUILD_DIR)/memory/%.o: $(SRC_DIR)/memory/%.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(BUILD_DIR)/scheduler/%.o: $(SRC_DIR)/scheduler/%.cpp
+$(BUILD_DIR)/scheduler/%.o: $(SRC_DIR)/scheduler/%.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Create ISO image for QEMU
@@ -119,13 +119,12 @@ $(BUILD_DIR)/tradekernel.iso: bootloader kernel
 run: $(BUILD_DIR)/kernel.bin
 	qemu-system-x86_64 \
 		-kernel $(BUILD_DIR)/kernel.bin \
-		-cpu host \
+		-cpu qemu64 \
 		-smp 4 \
 		-m 512M \
 		-no-reboot \
 		-no-shutdown \
-		-serial stdio \
-		-enable-kvm
+		-serial stdio
 
 # Debug version
 debug: CXXFLAGS += -g -DDEBUG

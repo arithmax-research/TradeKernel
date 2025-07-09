@@ -46,7 +46,7 @@ Task::~Task() {
 }
 
 bool Task::allocate_stack() {
-    stack_base = Memory::fast_alloc(stack_size + 4096); // Extra page for guard
+    stack_base = static_cast<u8*>(Memory::fast_alloc(stack_size + 4096)); // Extra page for guard
     if (!stack_base) {
         return false;
     }
