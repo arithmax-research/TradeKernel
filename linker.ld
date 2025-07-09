@@ -41,10 +41,12 @@ SECTIONS
     
     /* Uninitialized data section */
     .bss ALIGN(4K) : {
+        bss_start = .;
         _bss_start = .;
         *(.bss)
         *(.bss.*)
         *(COMMON)
+        bss_end = .;
         _bss_end = .;
     }
     
@@ -57,6 +59,7 @@ SECTIONS
     
     /* Heap section for dynamic allocation */
     .heap ALIGN(4K) : {
+        kernel_heap_start = .;
         _heap_start = .;
         . += 0x100000; /* 1MB heap */
         _heap_end = .;

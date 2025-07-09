@@ -1,6 +1,9 @@
-#include "../include/types.h"
-#include "../include/memory.h"
-#include "../include/scheduler.h"
+#include "types.h"
+#include "memory.h"
+#include "scheduler.h"
+
+// Global types for new/delete - use built-in types
+typedef unsigned long size_t;
 
 extern "C" void cpp_kernel_main();
 extern "C" void handle_timer_interrupt();
@@ -125,7 +128,6 @@ private:
     bool has_sse2 = false;
     bool has_avx = false;
     bool has_avx2 = false;
-    u32 cache_line_size = 64;
     
 public:
     bool detect_features() {
@@ -166,7 +168,7 @@ public:
 static CPUFeatures cpu_features;
 
 // Test task functions
-void market_data_task(void* arg) {
+void market_data_task(void* /*arg*/) {
     console.print("Market Data Task Started\n");
     
     for (int i = 0; i < 1000; i++) {
@@ -194,7 +196,7 @@ void market_data_task(void* arg) {
     console.print("Market Data Task Finished\n");
 }
 
-void order_execution_task(void* arg) {
+void order_execution_task(void* /*arg*/) {
     console.print("Order Execution Task Started\n");
     
     for (int i = 0; i < 500; i++) {
@@ -222,7 +224,7 @@ void order_execution_task(void* arg) {
     console.print("Order Execution Task Finished\n");
 }
 
-void risk_management_task(void* arg) {
+void risk_management_task(void* /*arg*/) {
     console.print("Risk Management Task Started\n");
     
     for (int i = 0; i < 200; i++) {
@@ -364,7 +366,7 @@ extern "C" void cpp_kernel_main() {
 
 extern "C" void handle_timer_interrupt() {
     // Handle timer interrupt for scheduling
-    if (TradeKernel::g_kernel_initialized && Scheduler::g_scheduler) {
+    if (TradeKernel::g_kernel_initialized && TradeKernel::Scheduler::g_scheduler) {
         // Get current CPU core and handle timer
         // This would call the scheduler's timer handler
     }
@@ -380,9 +382,39 @@ extern "C" void handle_network_interrupt() {
 
 extern "C" void task_exit() {
     // Called when a task finishes execution
-    if (TradeKernel::g_kernel_initialized && Scheduler::g_scheduler) {
-        u32 task_id = Scheduler::get_current_task_id();
-        Scheduler::g_scheduler->destroy_task(task_id);
-        Scheduler::scheduler_yield();
+    if (TradeKernel::g_kernel_initialized && TradeKernel::Scheduler::g_scheduler) {
+        TradeKernel::u32 task_id = TradeKernel::Scheduler::get_current_task_id();
+        TradeKernel::Scheduler::g_scheduler->destroy_task(task_id);
+        TradeKernel::Scheduler::scheduler_yield();
     }
+}
+
+// Simple kernel heap for new/delete
+extern "C" {
+    extern TradeKernel::u8 kernel_heap_start[];
+    static TradeKernel::u8* heap_ptr = nullptr;
+}
+
+// Initialize heap pointer
+void init_kernel_heap() {
+    heap_ptr = kernel_heap_start;
+}
+
+// Custom new/delete operators for kernel
+void* operator new(size_t size) noexcept {
+    if (!heap_ptr) init_kernel_heap();
+    
+    // Align to 8 bytes
+    size = (size + 7) & ~7;
+    TradeKernel::u8* result = heap_ptr;
+    heap_ptr += size;
+    return result;
+}
+
+void operator delete(void*) noexcept {
+    // No-op for now - would implement proper free list
+}
+
+void operator delete(void*, size_t) noexcept {
+    // No-op for now
 }

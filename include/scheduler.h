@@ -3,10 +3,19 @@
 
 #include "types.h"
 #include "memory.h"
-#include <array>
 
 namespace TradeKernel {
 namespace Scheduler {
+
+// Simple array template for freestanding environment
+template<typename T, size_t N>
+struct Array {
+    T data[N];
+    
+    T& operator[](size_t i) { return data[i]; }
+    const T& operator[](size_t i) const { return data[i]; }
+    size_t size() const { return N; }
+};
 
 // Forward declarations
 class Task;
@@ -32,6 +41,11 @@ struct PACKED CPUContext {
 
 // Task Control Block
 class CACHE_ALIGNED Task {
+public:
+    // Allow scheduler to access private members
+    friend class TicklessScheduler;
+    friend class CPUCore;
+
 private:
     u32 task_id;
     Priority priority;
@@ -118,6 +132,10 @@ private:
 
 // Per-CPU scheduler state
 class CACHE_ALIGNED CPUCore {
+public:
+    // Allow scheduler to access private members
+    friend class TicklessScheduler;
+
 private:
     u32 core_id;
     Task* current_task;
@@ -160,7 +178,7 @@ class TicklessScheduler {
 private:
     static constexpr size_t MAX_CPUS = 64;
     
-    std::array<CPUCore*, MAX_CPUS> cpu_cores;
+    Array<CPUCore*, MAX_CPUS> cpu_cores;
     u32 num_cores;
     Task* task_table[4096]; // Max 4096 tasks
     u32 next_task_id;

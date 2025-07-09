@@ -1,10 +1,10 @@
-#include "../include/scheduler.h"
-#include "../include/memory.h"
+#include "scheduler.h"
+#include "memory.h"
 
 extern "C" {
     void context_switch_asm(TradeKernel::Scheduler::CPUContext* from, 
                            TradeKernel::Scheduler::CPUContext* to);
-    u64 get_cpu_id();
+    TradeKernel::u64 get_cpu_id();
 }
 
 namespace TradeKernel {
@@ -272,10 +272,17 @@ void CPUCore::context_switch(Task* from, Task* to) {
     // Update task runtime
     if (from) {
         cycles_t runtime = switch_start - from->last_run_time;
-        // from->total_runtime += runtime; // Would need atomic update
+        from->total_runtime += runtime; // Update runtime
     }
     
     to->last_run_time = switch_end;
+}
+
+// Idle task function
+static void idle_task_function(void*) {
+    while (true) {
+        asm volatile("hlt"); // Wait for interrupts
+    }
 }
 
 void CPUCore::handle_timer_interrupt() {
@@ -284,14 +291,8 @@ void CPUCore::handle_timer_interrupt() {
 }
 
 void CPUCore::create_idle_task() {
-    auto idle_func = [](void*) {
-        while (true) {
-            asm volatile("hlt"); // Wait for interrupts
-        }
-    };
-    
     idle_task = new Task(0, Priority::IDLE, 
-                        reinterpret_cast<void(*)(void*)>(idle_func), 
+                        idle_task_function, 
                         nullptr, 4096);
 }
 
@@ -398,7 +399,7 @@ void TicklessScheduler::yield() {
     }
 }
 
-void TicklessScheduler::sleep(nanoseconds_t ns) {
+void TicklessScheduler::sleep(nanoseconds_t /*ns*/) {
     // Simplified sleep - just yield for now
     // In real implementation, would set up timer
     yield();

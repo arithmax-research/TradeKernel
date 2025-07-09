@@ -10,16 +10,15 @@ INCLUDE_DIR := include
 
 # Compilers and tools
 ASM := nasm
-CXX := clang++
-LD := ld
-OBJCOPY := objcopy
+CXX := x86_64-elf-g++
+LD := x86_64-elf-ld
+OBJCOPY := x86_64-elf-objcopy
 
 # Assembly flags
 ASMFLAGS := -f elf64
 
 # C++ compiler flags for maximum performance
 CXXFLAGS := -std=c++20 \
-           -target x86_64-unknown-none-elf \
            -ffreestanding \
            -fno-exceptions \
            -fno-rtti \
@@ -32,7 +31,6 @@ CXXFLAGS := -std=c++20 \
            -O3 \
            -march=native \
            -mtune=native \
-           -flto \
            -ffast-math \
            -funroll-loops \
            -fomit-frame-pointer \
@@ -40,6 +38,8 @@ CXXFLAGS := -std=c++20 \
            -Wall \
            -Wextra \
            -Werror \
+           -Wno-sized-deallocation \
+           -fpermissive \
            -I$(INCLUDE_DIR)
 
 # Linker flags
