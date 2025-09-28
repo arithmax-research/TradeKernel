@@ -10,9 +10,9 @@ INCLUDE_DIR := include
 
 # Compilers and tools
 ASM := nasm
-CXX := x86_64-elf-g++
-LD := x86_64-elf-ld
-OBJCOPY := x86_64-elf-objcopy
+CXX := g++
+LD := ld
+OBJCOPY := objcopy
 
 # Assembly flags
 ASMFLAGS := -f elf64
@@ -28,6 +28,8 @@ CXXFLAGS := -std=c++20 \
            -nostdinc++ \
            -mno-red-zone \
            -mcmodel=kernel \
+           -fno-pic \
+           -fno-pie \
            -O3 \
            -march=native \
            -mtune=native \
@@ -37,7 +39,6 @@ CXXFLAGS := -std=c++20 \
            -finline-functions \
            -Wall \
            -Wextra \
-           -Werror \
            -Wno-sized-deallocation \
            -fpermissive \
            -I$(INCLUDE_DIR)
