@@ -197,11 +197,31 @@ run-direct: kernel $(BUILD_DIR)/tradekernel_multiboot
 		-m 512M \
 		-no-reboot \
 		-no-shutdown \
+		-display sdl \
 		-chardev stdio,id=char0,mux=on \
 		-serial chardev:char0 \
 		-mon chardev=char0 \
 		-append "console=ttyS0" \
-		-d guest_errors
+		-d int,cpu_reset,guest_errors \
+		-D qemu-enhanced.log
+
+# Fix multiboot header issues for QEMU
+run-fixed: $(BUILD_DIR)/tradekernel_multiboot
+	@echo "🔧 Creating fixed binary with correct multiboot2 header placement..."
+	$(OBJCOPY) -O binary $(BUILD_DIR)/tradekernel_multiboot $(BUILD_DIR)/tradekernel_fixed.bin
+	@echo "🚀 TradeKernel - Fixed binary launch..."
+	qemu-system-x86_64 \
+		-kernel $(BUILD_DIR)/tradekernel_fixed.bin \
+		-cpu qemu64 \
+		-smp 2 \
+		-m 256M \
+		-display sdl \
+		-serial stdio \
+		-monitor telnet:localhost:55555,server,nowait \
+		-no-reboot \
+		-no-shutdown \
+		-d int,cpu_reset,guest_errors \
+		-D qemu-fixed.log
 
 # Comprehensive build verification
 verify: $(BUILD_DIR)/tradekernel_kernel
