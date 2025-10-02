@@ -3,15 +3,14 @@ section .data
 	helloLen:  equ $-hello             ; Length of the 'Hello world!' string
 
 section .text
-	global _start
+	global _main
 
-_start:
-	mov eax,4            ; The system call for write (sys_write)
-	mov ebx,1            ; File descriptor 1 - standard output
-	mov ecx,hello        ; Put the offset of hello in ecx
-	mov edx,helloLen     ; helloLen is a constant, so we don't need to say
-	                     ;  mov edx,[helloLen] to get it's actual value
-	int 80h              ; Call the kernel
-	mov eax,1            ; The system call for exit (sys_exit)
-	mov ebx,0            ; Exit with return "code" of 0 (no error)
-	int 80h;
+_main:
+	mov rax, 0x2000004    ; macOS write syscall
+	mov rdi, 1            ; File descriptor 1 - standard output
+	lea rsi, [rel hello]  ; Load effective address of hello
+	mov rdx, helloLen     ; helloLen is a constant
+	syscall               ; Call the kernel
+	mov rax, 0x2000001    ; macOS exit syscall
+	mov rdi, 0            ; Exit with return "code" of 0 (no error)
+	syscall
