@@ -2,6 +2,7 @@
 #include "mm/memory.h"
 #include "arch/interrupts.h"
 #include "shell.h"
+#include "fs/fs.h"
 
 // Simple string formatting functions
 void print_hex(uint32_t value) {
@@ -54,6 +55,24 @@ void kernel_main(void) {
     // Initialize interrupts
     interrupts_init();
     
+    // Initialize filesystem
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    vga_write_string("Initializing filesystem...\n");
+    int fs_result = fs_init();
+    if (fs_result == FS_ERROR_NOT_FOUND) {
+        vga_write_string("No filesystem found. Formatting disk...\n");
+        fs_result = fs_format();
+        if (fs_result == FS_SUCCESS) {
+            vga_write_string("Filesystem created successfully!\n");
+        } else {
+            vga_write_string("Failed to create filesystem.\n");
+        }
+    } else if (fs_result == FS_SUCCESS) {
+        vga_write_string("Existing filesystem mounted successfully!\n");
+    } else {
+        vga_write_string("Filesystem initialization failed.\n");
+    }
+    
     // Set colors for a nice welcome screen
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("=================================================\n");
@@ -85,6 +104,7 @@ void kernel_main(void) {
     vga_write_string("  [OK] VGA text driver\n");
     vga_write_string("  [OK] Memory management\n");
     vga_write_string("  [OK] Interrupt handling\n");
+    vga_write_string("  [OK] File system\n");
     vga_write_string("  [  ] Scheduler\n\n");
     
     vga_set_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);

@@ -76,6 +76,29 @@ void vga_putchar(char c) {
         return;
     }
     
+    if (c == '\b') {
+        // Backspace handling
+        if (vga_column > 0) {
+            vga_column--;
+            const size_t index = vga_row * VGA_WIDTH + vga_column;
+            vga_buffer[index] = vga_entry(' ', vga_color);
+        } else if (vga_row > 0) {
+            // Move to previous line if at beginning of line
+            vga_row--;
+            vga_column = VGA_WIDTH - 1;
+            // Find the last non-space character on the previous line
+            while (vga_column > 0) {
+                const size_t index = vga_row * VGA_WIDTH + vga_column;
+                if ((vga_buffer[index] & 0xFF) != ' ') {
+                    vga_column++;
+                    break;
+                }
+                vga_column--;
+            }
+        }
+        return;
+    }
+    
     if (c == '\t') {
         vga_column = (vga_column + 8) & ~(8 - 1);
         if (vga_column >= VGA_WIDTH) {

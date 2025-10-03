@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "drivers/vga.h"
 #include "mm/memory.h"
+#include "fs/fs.h"
 
 static char command_buffer[MAX_COMMAND_LENGTH];
 static int buffer_pos = 0;
@@ -12,6 +13,10 @@ static shell_command_t commands[] = {
     {"info", "Display system information", cmd_info},
     {"mem", "Show memory usage", cmd_mem},
     {"echo", "Print text to screen", cmd_echo},
+    {"ls", "List directory contents", cmd_ls},
+    {"mkdir", "Create directory", cmd_mkdir},
+    {"touch", "Create empty file", cmd_touch},
+    {"rm", "Remove file or directory", cmd_rm},
     {"reboot", "Restart the system", cmd_reboot},
     {NULL, NULL, NULL} // Terminator
 };
@@ -22,6 +27,27 @@ void shell_init(void) {
     
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
     vga_write_string("$ ");
+}
+
+// Simple number printing function
+static void print_dec(uint32_t value) {
+    if (value == 0) {
+        vga_putchar('0');
+        return;
+    }
+    
+    char buffer[12];
+    int i = 0;
+    
+    while (value > 0) {
+        buffer[i++] = '0' + (value % 10);
+        value /= 10;
+    }
+    
+    // Reverse the string
+    for (int j = i - 1; j >= 0; j--) {
+        vga_putchar(buffer[j]);
+    }
 }
 
 // Simple string utilities
@@ -85,8 +111,6 @@ void shell_process_input(char c) {
         // Backspace
         if (buffer_pos > 0) {
             buffer_pos--;
-            vga_putchar('\b');
-            vga_putchar(' ');
             vga_putchar('\b');
         }
     } else if (c >= 32 && c <= 126) {
@@ -168,17 +192,20 @@ void cmd_mem(int argc, char* argv[]) {
     
     size_t total = get_total_memory();
     size_t free = get_free_memory();
+    size_t used = total - free;
     
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("=== Memory Usage ===\n");
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     vga_write_string("Total Heap: ");
-    // Simple number printing (we'll need to add this)
-    vga_write_string("4MB\n");
+    print_dec(total / 1024);
+    vga_write_string(" KB\n");
     vga_write_string("Used: ");
-    vga_write_string("(dynamic)\n");
+    print_dec(used / 1024);
+    vga_write_string(" KB\n");
     vga_write_string("Free: ");
-    vga_write_string("(dynamic)\n\n");
+    print_dec(free / 1024);
+    vga_write_string(" KB\n\n");
 }
 
 void cmd_echo(int argc, char* argv[]) {
@@ -203,5 +230,143 @@ void cmd_reboot(int argc, char* argv[]) {
     vga_write_string("Reboot failed. System halted.\n");
     while (1) {
         __asm__ volatile ("hlt");
+    }
+}
+
+void cmd_ls(int argc, char* argv[]) {
+    const char* path = "/";  // Default to root directory
+    
+    if (argc > 1) {
+        path = argv[1];
+    }
+    
+    directory_entry_t entries[32];
+    int count = fs_list_directory(path, entries, 32);
+    
+    if (count < 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        if (count == FS_ERROR_NOT_FOUND) {
+            vga_write_string("Directory not found: ");
+            vga_write_string(path);
+        } else if (count == FS_ERROR_INVALID) {
+            vga_write_string("Not a directory: ");
+            vga_write_string(path);
+        } else {
+            vga_write_string("Error reading directory");
+        }
+        vga_write_string("\n");
+        return;
+    }
+    
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Contents of ");
+    vga_write_string(path);
+    vga_write_string(":\n");
+    
+    if (count == 0) {
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        vga_write_string("  (empty directory)\n");
+        return;
+    }
+    
+    for (int i = 0; i < count; i++) {
+        if (entries[i].file_type == FILE_TYPE_DIRECTORY) {
+            vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+            vga_write_string("  [DIR]  ");
+        } else {
+            vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+            vga_write_string("  [FILE] ");
+        }
+        vga_write_string(entries[i].name);
+        vga_write_string("\n");
+    }
+}
+
+void cmd_mkdir(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Usage: mkdir <directory_name>\n");
+        return;
+    }
+    
+    const char* dir_path = argv[1];
+    int result = fs_create_directory(dir_path);
+    
+    if (result == FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("Directory created: ");
+        vga_write_string(dir_path);
+        vga_write_string("\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        if (result == FS_ERROR_EXISTS) {
+            vga_write_string("Directory already exists: ");
+        } else if (result == FS_ERROR_NOT_FOUND) {
+            vga_write_string("Parent directory not found: ");
+        } else if (result == FS_ERROR_NO_SPACE) {
+            vga_write_string("No space left on device: ");
+        } else {
+            vga_write_string("Failed to create directory: ");
+        }
+        vga_write_string(dir_path);
+        vga_write_string("\n");
+    }
+}
+
+void cmd_touch(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Usage: touch <filename>\n");
+        return;
+    }
+    
+    const char* file_path = argv[1];
+    int result = fs_create_file(file_path, FILE_TYPE_REGULAR);
+    
+    if (result == FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("File created: ");
+        vga_write_string(file_path);
+        vga_write_string("\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        if (result == FS_ERROR_EXISTS) {
+            vga_write_string("File already exists: ");
+        } else if (result == FS_ERROR_NOT_FOUND) {
+            vga_write_string("Parent directory not found: ");
+        } else if (result == FS_ERROR_NO_SPACE) {
+            vga_write_string("No space left on device: ");
+        } else {
+            vga_write_string("Failed to create file: ");
+        }
+        vga_write_string(file_path);
+        vga_write_string("\n");
+    }
+}
+
+void cmd_rm(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Usage: rm <filename>\n");
+        return;
+    }
+    
+    const char* file_path = argv[1];
+    int result = fs_delete_file(file_path);
+    
+    if (result == FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("File deleted: ");
+        vga_write_string(file_path);
+        vga_write_string("\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        if (result == FS_ERROR_NOT_FOUND) {
+            vga_write_string("File not found: ");
+        } else {
+            vga_write_string("Failed to delete file: ");
+        }
+        vga_write_string(file_path);
+        vga_write_string("\n");
     }
 }

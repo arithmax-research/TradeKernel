@@ -26,5 +26,9 @@ void cmd_info(int argc, char* argv[]);
 void cmd_mem(int argc, char* argv[]);
 void cmd_echo(int argc, char* argv[]);
 void cmd_reboot(int argc, char* argv[]);
+void cmd_ls(int argc, char* argv[]);
+void cmd_mkdir(int argc, char* argv[]);
+void cmd_touch(int argc, char* argv[]);
+void cmd_rm(int argc, char* argv[]);
 
 #endif // SHELL_H
