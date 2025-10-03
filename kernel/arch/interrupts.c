@@ -1,5 +1,6 @@
 #include "interrupts.h"
 #include "../drivers/vga.h"
+#include "../shell.h"
 
 #define IDT_SIZE 256
 #define PIC1_COMMAND 0x20
@@ -98,7 +99,7 @@ void keyboard_handler(void) {
     if (!(scancode & 0x80) && scancode < sizeof(scancode_to_ascii)) {
         char c = scancode_to_ascii[scancode];
         if (c != 0) {
-            vga_putchar(c);
+            shell_process_input(c);
         }
     }
     

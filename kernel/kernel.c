@@ -1,6 +1,7 @@
 #include "drivers/vga.h"
 #include "mm/memory.h"
 #include "arch/interrupts.h"
+#include "shell.h"
 
 // Simple string formatting functions
 void print_hex(uint32_t value) {
@@ -91,13 +92,13 @@ void kernel_main(void) {
     vga_write_string("This is a minimal kernel that can be extended with trading algorithms.\n\n");
     
     vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
-    vga_write_string("Interactive mode enabled - you can type on the keyboard!\n");
+    vga_write_string("Interactive shell enabled! Type 'help' for available commands.\n");
     vga_write_string("Timer interrupts are working in the background.\n\n");
     
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_write_string("$ ");
+    // Initialize and start the shell
+    shell_init();
     
-    // Halt the CPU
+    // Keep the kernel alive
     while (1) {
         __asm__ volatile ("hlt");
     }
