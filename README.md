@@ -131,15 +131,101 @@ The OS provides an interactive console where you can:
 - Observe interrupt handling in action
 - Test memory allocation (can be extended)
 
-## Next Steps
+## Development Roadmap
 
-This minimal kernel provides a foundation for:
+### Phase 1: Core System Features (Essential)
 
-- **File System**: Add storage and file management
-- **Network Stack**: Implement network protocols for market data
-- **Scheduler**: Multi-tasking support for concurrent trading algorithms
-- **Real-time Features**: Precise timing for high-frequency trading
-- **Security**: Memory protection and privilege levels
+#### 1. File System
+- **Simple FAT-like filesystem** for storing trading strategies and data
+- **Basic file operations**: create, read, write, delete files
+- **Directory support** for organizing trading algorithms
+- **Commands**: `ls`, `cat`, `mkdir`, `rm`, `cp`, `mv`
+
+#### 2. Enhanced Memory Management
+- **Virtual memory** with paging support
+- **Memory protection** between processes
+- **Improved heap allocator** with garbage collection
+- **Memory debugging** tools and statistics
+
+#### 3. Process Management & Scheduling
+- **Multi-tasking support** for concurrent trading algorithms
+- **Process creation/termination** (`fork`, `exec`, `kill`)
+- **Priority-based scheduler** for real-time trading
+- **Inter-process communication** (pipes, shared memory)
+
+### Phase 2: System Services (Important)
+
+#### 4. Network Stack
+- **TCP/IP implementation** for market data feeds
+- **Ethernet driver** for network connectivity
+- **Socket API** for network programming
+- **DHCP client** for automatic IP configuration
+
+#### 5. Timer & Clock Services
+- **High-precision timers** for microsecond trading
+- **Real-time clock (RTC)** support
+- **System uptime** and performance counters
+- **Scheduling based on time events**
+
+#### 6. Device Drivers
+- **Disk/Storage drivers** (IDE/SATA)
+- **Serial port communication** for external devices
+- **USB support** for peripherals
+- **Sound card** for alerts/notifications
+
+### Phase 3: Trading-Specific Features (Specialized)
+
+#### 7. Trading Engine Core
+- **Market data structures** (orders, trades, positions)
+- **Order management system** with validation
+- **Risk management** algorithms
+- **Portfolio tracking** and P&L calculation
+
+#### 8. Real-Time Data Processing
+- **Lock-free data structures** for high-frequency trading
+- **Event-driven architecture** for market events
+- **Low-latency message queues**
+- **Market data parsers** (FIX protocol, etc.)
+
+#### 9. Strategy Framework
+- **Plugin system** for trading strategies
+- **Backtesting engine** with historical data
+- **Performance analytics** and reporting
+- **Configuration management** for strategies
+
+### Phase 4: Development Tools (Quality of Life)
+
+#### 10. Debugging & Monitoring
+- **Built-in debugger** with breakpoints
+- **System profiler** for performance analysis
+- **Log management** system
+- **Resource monitoring** (CPU, memory, network)
+
+#### 11. Development Environment
+- **Text editor** within the OS
+- **Compiler integration** for C/Assembly
+- **Version control** (basic Git-like system)
+- **Package manager** for libraries
+
+### Implementation Priority
+
+**Next 3 Recommended Features:**
+1. **File System** - Essential for storing persistent data and trading strategies
+2. **Process Management** - Required for running multiple concurrent trading algorithms
+3. **Network Stack** - Critical for receiving real-time market data feeds
+
+**Example Future Commands:**
+```bash
+$ ls                    # List files and directories
+$ mkdir strategies      # Create directory for trading algorithms
+$ cat strategy.txt      # Display file contents
+$ edit myalgo.c        # Built-in text editor
+$ compile myalgo.c     # Compile trading strategy
+$ run myalgo           # Execute trading algorithm
+$ netstat              # Show network connections
+$ top                  # Show running processes
+$ df                   # Show disk usage
+```
 
 ## License
 
