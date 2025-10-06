@@ -1,6 +1,7 @@
 #include "fs.h"
 #include "disk.h"
 #include "../mm/memory.h"
+#include "../drivers/vga.h"
 
 // File system constants
 #define FS_MAGIC 0x54524144  // "TRAD" - TradeKernel filesystem magic
@@ -177,9 +178,12 @@ int _fs_free_inode(uint32_t inode_num) {
 
 int fs_init(void) {
     // Initialize disk
+    vga_write_string("Initializing disk...\n");
     if (disk_init() != DISK_SUCCESS) {
+        vga_write_string("Disk initialization failed!\n");
         return FS_ERROR_INVALID;
     }
+    vga_write_string("Disk initialized successfully.\n");
     
     // Initialize file descriptor table
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
@@ -214,8 +218,24 @@ int fs_init(void) {
 }
 
 int fs_format(void) {
+    vga_write_string("Formatting filesystem...\n");
     uint32_t total_sectors = disk_get_total_sectors();
+    vga_write_string("Total sectors: ");
+    // Print total sectors
+    char sector_str[20];
+    int temp = total_sectors;
+    int i = 0;
+    do {
+        sector_str[i++] = '0' + (temp % 10);
+        temp /= 10;
+    } while (temp > 0 && i < 19);
+    while (i > 0) {
+        vga_putchar(sector_str[--i]);
+    }
+    vga_write_string("\n");
+    
     if (total_sectors == 0) {
+        vga_write_string("No disk sectors available!\n");
         return FS_ERROR_INVALID;
     }
     

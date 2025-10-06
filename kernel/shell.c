@@ -11,6 +11,30 @@
 static char command_buffer[MAX_COMMAND_LENGTH];
 static int buffer_pos = 0;
 
+// Forward declarations for command functions
+void cmd_help(int argc, char* argv[]);
+void cmd_clear(int argc, char* argv[]);
+void cmd_info(int argc, char* argv[]);
+void cmd_mem(int argc, char* argv[]);
+void cmd_memstats(int argc, char* argv[]);
+void cmd_memleak(int argc, char* argv[]);
+void cmd_memcheck(int argc, char* argv[]);
+void cmd_pgstats(int argc, char* argv[]);
+void cmd_ps(int argc, char* argv[]);
+void cmd_schedstat(int argc, char* argv[]);
+void cmd_procinfo(int argc, char* argv[]);
+void cmd_testfork(int argc, char* argv[]);
+void cmd_testipc(int argc, char* argv[]);
+void cmd_msgtest(int argc, char* argv[]);
+void cmd_ls(int argc, char* argv[]);
+void cmd_mkdir(int argc, char* argv[]);
+void cmd_touch(int argc, char* argv[]);
+void cmd_rm(int argc, char* argv[]);
+void cmd_cat(int argc, char* argv[]);
+void cmd_cp(int argc, char* argv[]);
+void cmd_mv(int argc, char* argv[]);
+void cmd_reboot(int argc, char* argv[]);
+
 // Built-in commands table
 static shell_command_t commands[] = {
     {"help", "Show available commands", cmd_help},
@@ -31,6 +55,9 @@ static shell_command_t commands[] = {
     {"mkdir", "Create directory", cmd_mkdir},
     {"touch", "Create file", cmd_touch},
     {"rm", "Remove file", cmd_rm},
+    {"cat", "Display file contents", cmd_cat},
+    {"cp", "Copy file", cmd_cp},
+    {"mv", "Move/rename file", cmd_mv},
     {"reboot", "Restart the system", cmd_reboot},
 };
 
@@ -343,17 +370,47 @@ void cmd_mkdir(int argc, char* argv[]) {
         vga_write_string("\n");
     } else {
         vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        if (result == FS_ERROR_EXISTS) {
-            vga_write_string("Directory already exists: ");
-        } else if (result == FS_ERROR_NOT_FOUND) {
-            vga_write_string("Parent directory not found: ");
-        } else if (result == FS_ERROR_NO_SPACE) {
-            vga_write_string("No space left on device: ");
-        } else {
-            vga_write_string("Failed to create directory: ");
-        }
+        vga_write_string("Failed to create directory: ");
         vga_write_string(dir_path);
-        vga_write_string("\n");
+        vga_write_string(" (error: ");
+        
+        switch (result) {
+            case FS_ERROR_EXISTS:
+                vga_write_string("already exists");
+                break;
+            case FS_ERROR_NOT_FOUND:
+                vga_write_string("parent not found");
+                break;
+            case FS_ERROR_NO_SPACE:
+                vga_write_string("no space");
+                break;
+            case FS_ERROR_INVALID:
+                vga_write_string("invalid path");
+                break;
+            case FS_ERROR_NO_MEMORY:
+                vga_write_string("no memory");
+                break;
+            default:
+                vga_write_string("unknown error ");
+                // Print error code
+                char code_str[10];
+                int temp = result;
+                if (temp < 0) temp = -temp;
+                int i = 0;
+                do {
+                    code_str[i++] = '0' + (temp % 10);
+                    temp /= 10;
+                } while (temp > 0 && i < 9);
+                if (result < 0) {
+                    vga_write_string("-");
+                }
+                while (i > 0) {
+                    vga_putchar(code_str[--i]);
+                }
+                break;
+        }
+        
+        vga_write_string(")\n");
     }
 }
 
@@ -412,6 +469,291 @@ void cmd_rm(int argc, char* argv[]) {
         }
         vga_write_string(file_path);
         vga_write_string("\n");
+    }
+}
+
+void cmd_cat(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Usage: cat <filename>\n");
+        return;
+    }
+    
+    const char* file_path = argv[1];
+    int fd = fs_open(file_path, 0);  // Read-only
+    
+    if (fd < 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        if (fd == FS_ERROR_NOT_FOUND) {
+            vga_write_string("File not found: ");
+        } else {
+            vga_write_string("Failed to open file: ");
+        }
+        vga_write_string(file_path);
+        vga_write_string("\n");
+        return;
+    }
+    
+    // Get file size first
+    inode_t inode_info;
+    if (fs_stat(file_path, &inode_info) != FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to get file information\n");
+        fs_close(fd);
+        return;
+    }
+    
+    if (inode_info.size == 0) {
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        vga_write_string("(empty file)\n");
+        fs_close(fd);
+        return;
+    }
+    
+    // Read and display file contents
+    char buffer[513];  // 512 bytes + null terminator
+    uint32_t total_read = 0;
+    
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    
+    while (total_read < inode_info.size) {
+        uint32_t to_read = (inode_info.size - total_read > 512) ? 512 : (inode_info.size - total_read);
+        int bytes_read = fs_read(fd, buffer, to_read);
+        
+        if (bytes_read <= 0) {
+            break;
+        }
+        
+        buffer[bytes_read] = '\0';  // Null terminate
+        
+        // Display the content
+        for (int i = 0; i < bytes_read; i++) {
+            if (buffer[i] == '\0') {
+                // Stop at first null byte (though files shouldn't contain nulls)
+                break;
+            }
+            vga_putchar(buffer[i]);
+        }
+        
+        total_read += bytes_read;
+    }
+    
+    vga_write_string("\n");
+    fs_close(fd);
+}
+
+void cmd_cp(int argc, char* argv[]) {
+    if (argc < 3) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Usage: cp <source> <destination>\n");
+        return;
+    }
+    
+    const char* src_path = argv[1];
+    const char* dst_path = argv[2];
+    
+    // Check if destination already exists
+    if (fs_exists(dst_path)) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Destination already exists: ");
+        vga_write_string(dst_path);
+        vga_write_string("\n");
+        return;
+    }
+    
+    // Open source file
+    int src_fd = fs_open(src_path, 0);  // Read-only
+    if (src_fd < 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        if (src_fd == FS_ERROR_NOT_FOUND) {
+            vga_write_string("Source file not found: ");
+        } else {
+            vga_write_string("Failed to open source file: ");
+        }
+        vga_write_string(src_path);
+        vga_write_string("\n");
+        return;
+    }
+    
+    // Get source file info
+    inode_t src_inode;
+    if (fs_stat(src_path, &src_inode) != FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to get source file information\n");
+        fs_close(src_fd);
+        return;
+    }
+    
+    // Create destination file
+    int result = fs_create_file(dst_path, FILE_TYPE_REGULAR);
+    if (result != FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to create destination file: ");
+        vga_write_string(dst_path);
+        vga_write_string("\n");
+        fs_close(src_fd);
+        return;
+    }
+    
+    // Open destination file for writing
+    int dst_fd = fs_open(dst_path, 1);  // Write-only (assuming flag 1 means write)
+    if (dst_fd < 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to open destination file for writing\n");
+        fs_close(src_fd);
+        return;
+    }
+    
+    // Copy file contents
+    char buffer[512];
+    uint32_t total_copied = 0;
+    int success = 1;
+    
+    while (total_copied < src_inode.size) {
+        uint32_t to_read = (src_inode.size - total_copied > 512) ? 512 : (src_inode.size - total_copied);
+        int bytes_read = fs_read(src_fd, buffer, to_read);
+        
+        if (bytes_read <= 0) {
+            success = 0;
+            break;
+        }
+        
+        int bytes_written = fs_write(dst_fd, buffer, bytes_read);
+        if (bytes_written != bytes_read) {
+            success = 0;
+            break;
+        }
+        
+        total_copied += bytes_read;
+    }
+    
+    fs_close(src_fd);
+    fs_close(dst_fd);
+    
+    if (success) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("File copied: ");
+        vga_write_string(src_path);
+        vga_write_string(" -> ");
+        vga_write_string(dst_path);
+        vga_write_string("\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to copy file\n");
+        // Try to remove the incomplete destination file
+        fs_delete_file(dst_path);
+    }
+}
+
+void cmd_mv(int argc, char* argv[]) {
+    if (argc < 3) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Usage: mv <source> <destination>\n");
+        return;
+    }
+    
+    const char* src_path = argv[1];
+    const char* dst_path = argv[2];
+    
+    // Check if source exists
+    if (!fs_exists(src_path)) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Source file not found: ");
+        vga_write_string(src_path);
+        vga_write_string("\n");
+        return;
+    }
+    
+    // Check if destination already exists
+    if (fs_exists(dst_path)) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Destination already exists: ");
+        vga_write_string(dst_path);
+        vga_write_string("\n");
+        return;
+    }
+    
+    // For now, implement as copy + delete
+    // Open source file
+    int src_fd = fs_open(src_path, 0);  // Read-only
+    if (src_fd < 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to open source file\n");
+        return;
+    }
+    
+    // Get source file info
+    inode_t src_inode;
+    if (fs_stat(src_path, &src_inode) != FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to get source file information\n");
+        fs_close(src_fd);
+        return;
+    }
+    
+    // Create destination file
+    int result = fs_create_file(dst_path, FILE_TYPE_REGULAR);
+    if (result != FS_SUCCESS) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to create destination file\n");
+        fs_close(src_fd);
+        return;
+    }
+    
+    // Open destination file for writing
+    int dst_fd = fs_open(dst_path, 1);  // Write-only
+    if (dst_fd < 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to open destination file for writing\n");
+        fs_close(src_fd);
+        return;
+    }
+    
+    // Copy file contents
+    char buffer[512];
+    uint32_t total_copied = 0;
+    int success = 1;
+    
+    while (total_copied < src_inode.size) {
+        uint32_t to_read = (src_inode.size - total_copied > 512) ? 512 : (src_inode.size - total_copied);
+        int bytes_read = fs_read(src_fd, buffer, to_read);
+        
+        if (bytes_read <= 0) {
+            success = 0;
+            break;
+        }
+        
+        int bytes_written = fs_write(dst_fd, buffer, bytes_read);
+        if (bytes_written != bytes_read) {
+            success = 0;
+            break;
+        }
+        
+        total_copied += bytes_read;
+    }
+    
+    fs_close(src_fd);
+    fs_close(dst_fd);
+    
+    if (success) {
+        // Delete the source file
+        if (fs_delete_file(src_path) == FS_SUCCESS) {
+            vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+            vga_write_string("File moved: ");
+            vga_write_string(src_path);
+            vga_write_string(" -> ");
+            vga_write_string(dst_path);
+            vga_write_string("\n");
+        } else {
+            vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+            vga_write_string("Failed to remove source file after copy\n");
+            // Destination file exists but source still exists - inconsistent state
+        }
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to move file\n");
+        // Clean up the incomplete destination file
+        fs_delete_file(dst_path);
     }
 }
 

@@ -132,6 +132,8 @@ void kernel_main(void) {
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Initializing GUI framework...\n");
     gui_init();
+    
+    vga_write_string("Initializing file system...\n");
     int fs_result = fs_init();
     if (fs_result == FS_ERROR_NOT_FOUND) {
         vga_write_string("No filesystem found. Formatting disk...\n");
@@ -139,12 +141,44 @@ void kernel_main(void) {
         if (fs_result == FS_SUCCESS) {
             vga_write_string("Filesystem created successfully!\n");
         } else {
-            vga_write_string("Failed to create filesystem.\n");
+            vga_write_string("Failed to create filesystem (error: ");
+            // Print error code
+            char code_str[10];
+            int temp = fs_result;
+            if (temp < 0) temp = -temp;
+            int i = 0;
+            do {
+                code_str[i++] = '0' + (temp % 10);
+                temp /= 10;
+            } while (temp > 0 && i < 9);
+            if (fs_result < 0) {
+                vga_write_string("-");
+            }
+            while (i > 0) {
+                vga_putchar(code_str[--i]);
+            }
+            vga_write_string(")\n");
         }
     } else if (fs_result == FS_SUCCESS) {
         vga_write_string("Existing filesystem mounted successfully!\n");
     } else {
-        vga_write_string("Filesystem initialization failed.\n");
+        vga_write_string("Filesystem initialization failed (error: ");
+        // Print error code
+        char code_str[10];
+        int temp = fs_result;
+        if (temp < 0) temp = -temp;
+        int i = 0;
+        do {
+            code_str[i++] = '0' + (temp % 10);
+            temp /= 10;
+        } while (temp > 0 && i < 9);
+        if (fs_result < 0) {
+            vga_write_string("-");
+        }
+        while (i > 0) {
+            vga_putchar(code_str[--i]);
+        }
+        vga_write_string(")\n");
     }
     
     // Set colors for a nice welcome screen
