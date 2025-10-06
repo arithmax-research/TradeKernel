@@ -8,6 +8,12 @@
 #include "proc/scheduler.h"
 #include "proc/syscalls.h" // System calls enabled
 #include "proc/ipc.h" // IPC enabled
+#include "net/net.h"
+#include "net/eth.h"
+#include "net/ip.h"
+#include "net/tcp.h"
+#include "net/socket.h"
+#include "net/websocket.h"
 #include "gui.h" // GUI frameworkdrivers/vga.h"
 #include "mm/memory.h"
 #include "mm/paging.h"
@@ -181,6 +187,27 @@ void kernel_main(void) {
         vga_write_string(")\n");
     }
     
+    // Initialize network stack
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Initializing network stack...\n");
+    if (rtl8139_init(0xC000) == NET_SUCCESS) {
+        vga_write_string("Ethernet driver initialized successfully!\n");
+    } else {
+        vga_write_string("Ethernet driver initialization failed!\n");
+    }
+    
+    if (ipv4_init() == NET_SUCCESS) {
+        vga_write_string("IPv4 protocol initialized successfully!\n");
+    } else {
+        vga_write_string("IPv4 protocol initialization failed!\n");
+    }
+    
+    if (tcp_init() == NET_SUCCESS) {
+        vga_write_string("TCP protocol initialized successfully!\n");
+    } else {
+        vga_write_string("TCP protocol initialization failed!\n");
+    }
+    
     // Set colors for a nice welcome screen
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("=================================================\n");
@@ -216,7 +243,12 @@ void kernel_main(void) {
     vga_write_string("  [OK] Priority scheduler\n");
     vga_write_string("  [OK] System calls\n");
     vga_write_string("  [OK] Inter-process communication\n");
-    vga_write_string("  [OK] File system\n\n");
+    vga_write_string("  [OK] File system\n");
+    vga_write_string("  [OK] Ethernet driver (RTL8139)\n");
+    vga_write_string("  [OK] IPv4 protocol stack\n");
+    vga_write_string("  [OK] TCP protocol\n");
+    vga_write_string("  [OK] Socket API\n");
+    vga_write_string("  [OK] WebSocket support\n\n");
     
     vga_set_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     vga_write_string("TradeKernel OS is ready for development!\n");

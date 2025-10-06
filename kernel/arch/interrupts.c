@@ -3,6 +3,13 @@
 #include "../shell.h"
 #include "../proc/scheduler.h"
 #include "../proc/syscalls.h" // System calls enabled
+#include "../net/eth.h" // Network interrupts and I/O functions
+
+// Interrupt handler extern declarations
+extern void timer_interrupt_wrapper(void);
+extern void keyboard_interrupt_wrapper(void);
+extern void page_fault_interrupt_wrapper(void);
+extern void network_interrupt_wrapper(void);
 
 // Simple tick counter for timing
 static volatile uint32_t system_ticks = 0;
@@ -20,16 +27,7 @@ uint32_t get_ticks(void) {
 static idt_entry_t idt[IDT_SIZE];
 static idt_descriptor_t idt_desc;
 
-// I/O port access functions
-static inline void outb(uint16_t port, uint8_t value) {
-    __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
-}
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
+// I/O port access functions are now in eth.h
 
 void set_idt_entry(int num, uint32_t handler, uint16_t selector, uint8_t flags) {
     idt[num].offset_low = handler & 0xFFFF;
@@ -53,9 +51,9 @@ static void init_pic(void) {
     outb(PIC2_DATA, 0x02);    // PIC2 is slave
     outb(PIC2_DATA, 0x01);    // 8086 mode
     
-    // Enable keyboard and timer interrupts only
-    outb(PIC1_DATA, 0xFC); // Enable IRQ 0 (timer) and IRQ 1 (keyboard)
-    outb(PIC2_DATA, 0xFF); // Disable all IRQs on PIC2
+    // Enable keyboard, timer, and network interrupts
+    outb(PIC1_DATA, 0xE4); // Enable IRQ 0 (timer), IRQ 1 (keyboard), disable others on PIC1
+    outb(PIC2_DATA, 0xFB); // Enable IRQ 11 (network) on PIC2, disable others
 }
 
 void interrupts_init(void) {
@@ -73,6 +71,7 @@ void interrupts_init(void) {
     set_idt_entry(0x21, (uint32_t)keyboard_interrupt_wrapper, 0x08, 0x8E); // Keyboard
     set_idt_entry(0x0E, (uint32_t)page_fault_interrupt_wrapper, 0x08, 0x8E); // Page fault
     set_idt_entry(0x80, (uint32_t)syscall_interrupt_handler, 0x08, 0xEE); // System calls (user callable)
+    set_idt_entry(0x2B, (uint32_t)network_interrupt_wrapper, 0x08, 0x8E); // Network (RTL8139)
     
     // Initialize PIC
     init_pic();
@@ -133,4 +132,13 @@ void keyboard_handler(void) {
     
     // Send End of Interrupt to PIC
     outb(PIC1_COMMAND, 0x20);
+}
+
+// Network interrupt handler (RTL8139)
+void network_handler(void) {
+    // Handle network interrupt
+    rtl8139_interrupt_handler();
+    
+    // Send End of Interrupt to PIC2 (since network is on PIC2)
+    outb(PIC2_COMMAND, 0x20);
 }

@@ -204,7 +204,7 @@ void print_scheduler_info(void) {
     print_number(proc_stats.load_average / 100);
     vga_write_string(".");
     print_number(proc_stats.load_average % 100);
-    vga_write_string("%\n\n");
+    vga_write_string(">\n\n");
 }
 
 // Get system load average
@@ -291,27 +291,17 @@ void queue_remove(scheduler_queue_t* queue, process_t* process) {
     queue->count--;
 }
 
+
 void scheduler_show_stats(void) {
-    // Simple number printing function
-    auto void print_dec(uint32_t value) {
-        if (value == 0) {
-            vga_putchar('0');
-            return;
-        }
-        char buffer[16];
-        int i = 0;
-        while (value > 0) {
-            buffer[i++] = '0' + (value % 10);
-            value /= 10;
-        }
-        while (i > 0) {
-            vga_putchar(buffer[--i]);
-        }
-    }
-    
     vga_write_string("Scheduler Statistics:\n");
     vga_write_string("Total context switches: ");
-    // TODO: Implement proper statistics display
+    print_dec(proc_stats.context_switches);
+    vga_write_string("\n");
+    vga_write_string("System load: ");
+    print_dec(proc_stats.load_average / 100);
+    vga_write_string(".");
+    print_dec(proc_stats.load_average % 100);
+    vga_write_string("\n");
     vga_write_string("N/A\n");
     vga_write_string("Active processes per priority:\n");
     
