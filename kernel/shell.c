@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "drivers/vga.h"
 #include "mm/memory.h"
+#include "mm/paging.h"
 #include "fs/fs.h"
 
 static char command_buffer[MAX_COMMAND_LENGTH];
@@ -8,17 +9,19 @@ static int buffer_pos = 0;
 
 // Built-in commands table
 static shell_command_t commands[] = {
-    {"help", "Show this help message", cmd_help},
+    {"help", "Show available commands", cmd_help},
     {"clear", "Clear the screen", cmd_clear},
-    {"info", "Display system information", cmd_info},
+    {"info", "Show system information", cmd_info},
     {"mem", "Show memory usage", cmd_mem},
-    {"echo", "Print text to screen", cmd_echo},
+    {"memstats", "Show detailed heap statistics", cmd_memstats},
+    {"memleak", "Detect memory leaks", cmd_memleak},
+    {"memcheck", "Check heap integrity", cmd_memcheck},
+    {"pgstats", "Show paging statistics", cmd_pgstats},
     {"ls", "List directory contents", cmd_ls},
     {"mkdir", "Create directory", cmd_mkdir},
-    {"touch", "Create empty file", cmd_touch},
-    {"rm", "Remove file or directory", cmd_rm},
+    {"touch", "Create file", cmd_touch},
+    {"rm", "Remove file", cmd_rm},
     {"reboot", "Restart the system", cmd_reboot},
-    {NULL, NULL, NULL} // Terminator
 };
 
 void shell_init(void) {
@@ -206,6 +209,37 @@ void cmd_mem(int argc, char* argv[]) {
     vga_write_string("Free: ");
     print_dec(free / 1024);
     vga_write_string(" KB\n\n");
+}
+
+void cmd_memstats(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+    print_heap_stats();
+    print_allocation_list();
+}
+
+void cmd_memleak(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+    detect_memory_leaks();
+}
+
+void cmd_memcheck(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+    int errors = check_heap_integrity();
+    
+    if (errors == 0) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("Heap integrity check passed.\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Heap integrity check failed with ");
+        print_dec(errors);
+        vga_write_string(" errors.\n");
+    }
+}
+
+void cmd_pgstats(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+    print_memory_stats();
 }
 
 void cmd_echo(int argc, char* argv[]) {

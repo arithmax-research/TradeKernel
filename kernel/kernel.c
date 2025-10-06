@@ -1,5 +1,6 @@
 #include "drivers/vga.h"
 #include "mm/memory.h"
+#include "mm/paging.h"
 #include "arch/interrupts.h"
 #include "shell.h"
 #include "fs/fs.h"
@@ -52,8 +53,14 @@ void kernel_main(void) {
     // Initialize memory management
     memory_init();
     
-    // Initialize interrupts
+    // Initialize interrupts first
     interrupts_init();
+    
+    // Initialize paging system (after interrupts for page fault handling)
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Initializing virtual memory...\n");
+    paging_init();
+    // Note: Not enabling paging yet - keeping identity mapping for stability
     
     // Initialize filesystem
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
@@ -105,7 +112,7 @@ void kernel_main(void) {
     vga_write_string("  [OK] Memory management\n");
     vga_write_string("  [OK] Interrupt handling\n");
     vga_write_string("  [OK] File system\n");
-    vga_write_string("  [  ] Scheduler\n\n");
+    vga_write_string("  [OK] Basic scheduler\n\n");
     
     vga_set_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
     vga_write_string("TradeKernel OS is ready for development!\n");

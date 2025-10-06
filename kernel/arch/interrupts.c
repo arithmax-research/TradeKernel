@@ -62,6 +62,7 @@ void interrupts_init(void) {
     // Set interrupt handlers
     set_idt_entry(0x20, (uint32_t)timer_interrupt_wrapper, 0x08, 0x8E); // Timer
     set_idt_entry(0x21, (uint32_t)keyboard_interrupt_wrapper, 0x08, 0x8E); // Keyboard
+    set_idt_entry(0x0E, (uint32_t)page_fault_interrupt_wrapper, 0x08, 0x8E); // Page fault
     
     // Initialize PIC
     init_pic();
@@ -75,11 +76,24 @@ void interrupts_init(void) {
 
 // Timer interrupt handler
 void timer_handler(void) {
-    static int tick_count = 0;
-    tick_count++;
+    // Simple timer handler - could be used for task switching later
     
     // Send End of Interrupt to PIC
     outb(PIC1_COMMAND, 0x20);
+}
+
+// Page fault interrupt handler (interrupt 14)
+void page_fault_interrupt_handler(void) {
+    uint32_t error_code, virtual_addr;
+    
+    // Get error code from stack
+    __asm__ volatile ("movl 4(%%esp), %0" : "=r" (error_code));
+    
+    // Get faulting address from CR2
+    __asm__ volatile ("movl %%cr2, %0" : "=r" (virtual_addr));
+    
+    // Call the page fault handler
+    page_fault_handler(error_code, virtual_addr);
 }
 
 // Keyboard interrupt handler

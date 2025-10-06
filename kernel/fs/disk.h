@@ -61,9 +61,6 @@ uint32_t disk_get_total_sectors(void);
 bool disk_is_present(void);
 
 // Internal helper functions (defined in disk.c)
-// static int _disk_wait_ready(uint16_t base_port);
-// static int _disk_wait_data(uint16_t base_port);
-// static void _disk_select_drive(uint16_t base_port, uint8_t drive);
-// static uint8_t _disk_read_status(uint16_t base_port);
+
 
 #endif // DISK_H

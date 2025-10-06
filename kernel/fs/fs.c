@@ -468,7 +468,12 @@ int fs_create_directory(const char* path) {
     // Get parent inode
     uint32_t parent_inode_num;
     if (resolve_path(parent_path, &parent_inode_num) != FS_SUCCESS) {
-        return FS_ERROR_NOT_FOUND;
+        // If parent is root and path resolution failed, use root inode directly
+        if (parent_path[0] == '/' && parent_path[1] == '\0') {
+            parent_inode_num = ROOT_INODE;
+        } else {
+            return FS_ERROR_NOT_FOUND;
+        }
     }
     
     // Check if directory already exists

@@ -34,9 +34,14 @@ void set_idt_entry(int num, uint32_t handler, uint16_t selector, uint8_t flags);
 // Interrupt handlers
 void keyboard_handler(void);
 void timer_handler(void);
+void page_fault_interrupt_handler(void);
+
+// External page fault handler (from paging.c)
+extern void page_fault_handler(uint32_t error_code, uint32_t virtual_addr);
 
 // Assembly wrappers (defined in interrupt_handlers.asm)
 extern void keyboard_interrupt_wrapper(void);
 extern void timer_interrupt_wrapper(void);
+extern void page_fault_interrupt_wrapper(void);
 
 #endif // INTERRUPTS_H
