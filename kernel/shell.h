@@ -34,5 +34,11 @@ void cmd_ls(int argc, char* argv[]);
 void cmd_mkdir(int argc, char* argv[]);
 void cmd_touch(int argc, char* argv[]);
 void cmd_rm(int argc, char* argv[]);
+void cmd_ps(int argc, char* argv[]);
+void cmd_schedstat(int argc, char* argv[]);
+void cmd_procinfo(int argc, char* argv[]);
+void cmd_testfork(int argc, char* argv[]);
+void cmd_testipc(int argc, char* argv[]);
+void cmd_msgtest(int argc, char* argv[]);
 
 #endif // SHELL_H

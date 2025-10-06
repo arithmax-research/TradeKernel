@@ -1,6 +1,15 @@
 #include "interrupts.h"
 #include "../drivers/vga.h"
 #include "../shell.h"
+#include "../proc/scheduler.h"
+#include "../proc/syscalls.h" // System calls enabled
+
+// Simple tick counter for timing
+static volatile uint32_t system_ticks = 0;
+
+uint32_t get_ticks(void) {
+    return system_ticks;
+}
 
 #define IDT_SIZE 256
 #define PIC1_COMMAND 0x20
@@ -63,6 +72,7 @@ void interrupts_init(void) {
     set_idt_entry(0x20, (uint32_t)timer_interrupt_wrapper, 0x08, 0x8E); // Timer
     set_idt_entry(0x21, (uint32_t)keyboard_interrupt_wrapper, 0x08, 0x8E); // Keyboard
     set_idt_entry(0x0E, (uint32_t)page_fault_interrupt_wrapper, 0x08, 0x8E); // Page fault
+    set_idt_entry(0x80, (uint32_t)syscall_interrupt_handler, 0x08, 0xEE); // System calls (user callable)
     
     // Initialize PIC
     init_pic();
@@ -76,7 +86,11 @@ void interrupts_init(void) {
 
 // Timer interrupt handler
 void timer_handler(void) {
-    // Simple timer handler - could be used for task switching later
+    // Increment system tick counter
+    system_ticks++;
+    
+    // Update scheduler tick for process scheduling
+    scheduler_tick();
     
     // Send End of Interrupt to PIC
     outb(PIC1_COMMAND, 0x20);

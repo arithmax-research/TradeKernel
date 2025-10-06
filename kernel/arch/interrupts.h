@@ -43,5 +43,9 @@ extern void page_fault_handler(uint32_t error_code, uint32_t virtual_addr);
 extern void keyboard_interrupt_wrapper(void);
 extern void timer_interrupt_wrapper(void);
 extern void page_fault_interrupt_wrapper(void);
+extern void syscall_interrupt_handler(void);
+
+// Timing functions
+uint32_t get_ticks(void);
 
 #endif // INTERRUPTS_H

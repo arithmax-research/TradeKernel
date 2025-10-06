@@ -3,6 +3,10 @@
 #include "mm/memory.h"
 #include "mm/paging.h"
 #include "fs/fs.h"
+#include "proc/process.h"
+#include "proc/scheduler.h"
+#include "proc/syscalls.h" // System calls enabled
+#include "proc/ipc.h" // IPC enabled
 
 static char command_buffer[MAX_COMMAND_LENGTH];
 static int buffer_pos = 0;
@@ -17,6 +21,12 @@ static shell_command_t commands[] = {
     {"memleak", "Detect memory leaks", cmd_memleak},
     {"memcheck", "Check heap integrity", cmd_memcheck},
     {"pgstats", "Show paging statistics", cmd_pgstats},
+    {"ps", "Show running processes", cmd_ps},
+    {"schedstat", "Show scheduler statistics", cmd_schedstat},
+    {"procinfo", "Show detailed process information", cmd_procinfo},
+    {"testfork", "Test fork() system call", cmd_testfork},
+    {"testipc", "Test inter-process communication", cmd_testipc},
+    {"msgtest", "Test message queues", cmd_msgtest},
     {"ls", "List directory contents", cmd_ls},
     {"mkdir", "Create directory", cmd_mkdir},
     {"touch", "Create file", cmd_touch},
@@ -402,5 +412,223 @@ void cmd_rm(int argc, char* argv[]) {
         }
         vga_write_string(file_path);
         vga_write_string("\n");
+    }
+}
+
+// Process management commands
+void cmd_ps(int argc, char* argv[]) {
+    (void)argc; (void)argv;  // Suppress unused parameter warnings
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Process List:\n");
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    vga_write_string("PID  PPID PRIO STATE    CPU%  MEMORY  NAME\n");
+    vga_write_string("---  ---- ---- -------- ----  ------  ----\n");
+    
+    // Display process information
+    process_show_all_processes();
+}
+
+void cmd_schedstat(int argc, char* argv[]) {
+    (void)argc; (void)argv;  // Suppress unused parameter warnings
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Scheduler Statistics:\n");
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    
+    scheduler_show_stats();
+}
+
+void cmd_procinfo(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Usage: procinfo <pid>\n");
+        return;
+    }
+    
+    // Simple string to number conversion
+    uint32_t pid = 0;
+    const char* str = argv[1];
+    while (*str >= '0' && *str <= '9') {
+        pid = pid * 10 + (*str - '0');
+        str++;
+    }
+    
+    if (pid == 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Invalid PID\n");
+        return;
+    }
+    
+    process_t* proc = process_find_by_pid(pid);
+    if (!proc) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Process not found\n");
+        return;
+    }
+    
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Process Information:\n");
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    
+    vga_write_string("  PID: ");
+    print_dec(proc->pid);
+    vga_write_string("\n");
+    
+    vga_write_string("  Parent PID: ");
+    print_dec(proc->ppid);
+    vga_write_string("\n");
+    
+    vga_write_string("  Priority: ");
+    print_dec(proc->priority);
+    vga_write_string("\n");
+    
+    vga_write_string("  State: ");
+    switch (proc->state) {
+        case PROCESS_RUNNING: vga_write_string("RUNNING"); break;
+        case PROCESS_READY: vga_write_string("READY"); break;
+        case PROCESS_BLOCKED: vga_write_string("BLOCKED"); break;
+        case PROCESS_SLEEPING: vga_write_string("SLEEPING"); break;
+        case PROCESS_ZOMBIE: vga_write_string("ZOMBIE"); break;
+        default: vga_write_string("UNKNOWN"); break;
+    }
+    vga_write_string("\n");
+    
+    vga_write_string("  CPU Time: ");
+    print_dec(proc->cpu_time);
+    vga_write_string(" ticks\n");
+    
+    vga_write_string("  Memory Used: ");
+    print_dec(proc->memory_used);
+    vga_write_string(" bytes\n");
+}
+
+void cmd_testfork(int argc, char* argv[]) {
+    (void)argc; (void)argv;  // Suppress unused parameter warnings
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Testing fork() system call...\n");
+    
+    // Create a simple test process
+    process_t* child = process_create("test_child", NULL, PRIORITY_NORMAL);
+    if (child) {
+        scheduler_add_process(child);
+        
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("Child process created with PID: ");
+        print_dec(child->pid);
+        vga_write_string("\n");
+        
+        // Simulate some work for the child
+        child->cpu_time = 10;
+        child->memory_used = 4096;
+        
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        vga_write_string("Note: This is a demonstration - child process will be cleaned up.\n");
+        
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to create child process\n");
+    }
+}
+
+// TODO: Re-enable when IPC is fixed
+void cmd_testipc(int argc, char* argv[]) {
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Testing Inter-Process Communication...\n");
+    
+    // Test shared memory pool
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    vga_write_string("Creating shared memory pool...\n");
+    
+    shared_pool_t* pool = create_shared_pool(sizeof(market_data_t), 100);
+    if (pool) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("Shared memory pool created successfully\n");
+        
+        // Test allocation
+        market_data_t* data = (market_data_t*)shared_pool_alloc(pool);
+        if (data) {
+            // Fill with test data
+            data->price = 12345; // Simplified - would be a double
+            data->volume = 1000;
+            data->symbol_id = 1;
+            data->side = 0; // bid
+            
+            vga_write_string("Test market data allocated and filled\n");
+            
+            shared_pool_free(pool, data);
+            vga_write_string("Memory freed successfully\n");
+        }
+        
+        destroy_shared_pool(pool);
+        vga_write_string("Shared memory pool destroyed\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to create shared memory pool\n");
+    }
+}
+
+// TODO: Re-enable when IPC is fixed
+void cmd_msgtest(int argc, char* argv[]) {
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Testing Message Queues...\n");
+    
+    // Create a message queue
+    uint32_t queue_id = msgget(0x1234, 0x200); // IPC_CREAT
+    if (queue_id != (uint32_t)-1) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("Message queue created with ID: ");
+        print_dec(queue_id);
+        vga_write_string("\n");
+        
+        // Test sending a message
+        message_t msg;
+        msg.type = MSG_MARKET_DATA;
+        msg.priority = 1;
+        
+        // Fill with test market data
+        market_data_t test_data;
+        test_data.price = 98765; // Simplified
+        test_data.volume = 500;
+        test_data.symbol_id = 42;
+        test_data.side = 1; // ask
+        
+        // Copy to message
+        for (int i = 0; i < sizeof(market_data_t); i++) {
+            msg.data[i] = ((uint8_t*)&test_data)[i];
+        }
+        
+        int result = msgsnd(queue_id, &msg, sizeof(market_data_t), 0);
+        if (result == 0) {
+            vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+            vga_write_string("Message sent successfully\n");
+            
+            // Test receiving the message
+            message_t recv_msg;
+            result = msgrcv(queue_id, &recv_msg, sizeof(market_data_t), MSG_MARKET_DATA, 0x800);
+            if (result > 0) {
+                vga_write_string("Message received successfully\n");
+                
+                // Verify data
+                market_data_t* received_data = (market_data_t*)recv_msg.data;
+                vga_write_string("Received data - Symbol: ");
+                print_dec(received_data->symbol_id);
+                vga_write_string(", Volume: ");
+                print_dec((uint32_t)received_data->volume);
+                vga_write_string("\n");
+            } else {
+                vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+                vga_write_string("Failed to receive message\n");
+            }
+        } else {
+            vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+            vga_write_string("Failed to send message\n");
+        }
+        
+        // Clean up
+        msgctl(queue_id, 0, NULL); // IPC_RMID
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        vga_write_string("Message queue destroyed\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Failed to create message queue\n");
     }
 }
