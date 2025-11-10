@@ -876,6 +876,7 @@ void cmd_testfork(int argc, char* argv[]) {
 
 // TODO: Re-enable when IPC is fixed
 void cmd_testipc(int argc, char* argv[]) {
+    (void)argc; (void)argv; // Suppress unused parameter warnings
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Testing Inter-Process Communication...\n");
     
@@ -913,6 +914,7 @@ void cmd_testipc(int argc, char* argv[]) {
 
 // TODO: Re-enable when IPC is fixed
 void cmd_msgtest(int argc, char* argv[]) {
+    (void)argc; (void)argv; // Suppress unused parameter warnings
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Testing Message Queues...\n");
     
@@ -937,7 +939,7 @@ void cmd_msgtest(int argc, char* argv[]) {
         test_data.side = 1; // ask
         
         // Copy to message
-        for (int i = 0; i < sizeof(market_data_t); i++) {
+        for (unsigned int i = 0; i < sizeof(market_data_t); i++) {
             msg.data[i] = ((uint8_t*)&test_data)[i];
         }
         

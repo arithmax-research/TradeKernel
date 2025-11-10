@@ -2,6 +2,9 @@
 #include "../mm/memory.h"
 #include "../drivers/vga.h"
 
+// Declaration for print_dec
+void print_dec(uint32_t value);
+
 // External variables
 extern process_t* current_process;
 extern process_t* idle_process;
