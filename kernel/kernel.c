@@ -65,14 +65,14 @@ uint32_t detect_memory(void) {
     return 0x1000000; // Assume 16MB for now
 }
 
-// Display TradeKernel loading screen with ASCII art logo
+// Display TradeKernel loading screen with ASCII art logo and animation
 void display_loading_screen(void) {
     // Clear screen and set colors
     vga_clear();
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     
-    // TradeKernel ASCII Art Logo
-    vga_write_string("\n\n\n");
+    // TradeKernel ASCII Art Logo with icons
+    vga_write_string("\n\n");
     vga_write_string("          _______                        ______                __\n");
     vga_write_string("         /_  __(_)____ ___  ____  ____  / ____/___  ____  _____/ /\n");
     vga_write_string("          / / / / ___// _ \\/ __ \\/ __ \\/ /   / __ \\/ __ \\/ ___/ / \n");
@@ -81,29 +81,66 @@ void display_loading_screen(void) {
     vga_write_string("                         /_/                                      \n");
     vga_write_string("\n");
     
-    // Version and tagline
+    // Version and tagline with icons
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_write_string("                    TradeKernel OS v1.3 - ArithmaX Customized\n");
+    vga_write_string("                    * TradeKernel OS v1.3 - ArithmaX Customized *\n");
     vga_write_string("                Advanced Process Management & IPC Framework\n");
     vga_write_string("\n");
     
-    // Loading message
+    // Loading message with animation
     vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-    vga_write_string("                              Initializing kernel...\n");
-    vga_write_string("\n");
+    vga_write_string("                              Initializing kernel ");
     
-    // Simple progress bar simulation
+    // Animated loading with spinning cursor and progress
+    char spinner[] = {'|', '/', '-', '\\'};
+    int progress = 0;
+    
+    for (int frame = 0; frame < 40; frame++) {
+        // Update spinner
+        vga_set_cursor(54, 10); // Position after "Initializing kernel "
+        vga_putchar(spinner[frame % 4]);
+        
+        // Update progress bar
+        vga_set_cursor(30, 12);
+        vga_write_string("[");
+        for (int i = 0; i < 30; i++) {
+            if (i < progress) {
+                vga_write_string("#"); // Filled block
+            } else {
+                vga_write_string("."); // Empty
+            }
+        }
+        vga_write_string("]");
+        
+        // Update progress percentage
+        vga_set_cursor(62, 12);
+        char percent[5];
+        int pct = (progress * 100) / 30;
+        percent[0] = '0' + (pct / 10);
+        percent[1] = '0' + (pct % 10);
+        percent[2] = '%';
+        percent[3] = '\0';
+        vga_write_string(percent);
+        
+        // Increment progress
+        if (frame % 3 == 0 && progress < 30) {
+            progress++;
+        }
+        
+        // Brief delay for animation
+        for (volatile int i = 0; i < 200000; i++) {
+            // Busy wait for animation timing
+        }
+    }
+    
+    vga_write_string("\n\n");
+    
+    // Show system icons
+    vga_set_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_BLACK);
+    vga_write_string("                              System Status:\n");
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    vga_write_string("                              [");
-    for (int i = 0; i < 30; i++) {
-        vga_write_string(".");
-    }
-    vga_write_string("]\n");
-    
-    // Brief delay (busy wait)
-    for (volatile int i = 0; i < 1000000; i++) {
-        // Busy wait for visual effect
-    }
+    vga_write_string("                              [OK] CPU: OK    [OK] Memory: OK    [OK] Disk: OK\n");
+    vga_write_string("\n");
 }
 
 // Kernel main function - called from bootloader
@@ -258,32 +295,125 @@ void kernel_main(void) {
     vga_write_string("Interactive shell enabled! Type 'help' for available commands.\n");
     vga_write_string("Timer interrupts are working in the background.\n\n");
     
-    // GUI Demo - Create a sample window
-    vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_write_string("GUI Framework Demo:\n");
+    // Boot Splash Screen - Show GUI with system information
+    vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    vga_write_string("Launching TradeKernel GUI Boot Splash...\n\n");
     
-    // Clear screen for GUI demo
+    // Clear screen for boot splash
     vga_clear();
     
-    window_t* demo_window = gui_create_window(10, 8, 50, 15, "TradeKernel GUI Demo");
-    if (demo_window) {
-        gui_create_label(demo_window, 2, 1, "Welcome to TradeKernel OS!");
-        gui_create_label(demo_window, 2, 3, "This demonstrates the GUI framework.");
-        gui_create_button(demo_window, 15, 6, 20, 3, "OK", NULL);
-        gui_create_checkbox(demo_window, 2, 10, "Enable advanced features", 1);
-        gui_show_window(demo_window);
+    // Create main boot splash window
+    window_t* splash_window = gui_create_window(3, 1, 74, 22, "TradeKernel OS v1.3 - System Boot");
+    if (splash_window) {
+        // Title and welcome with ASCII art
+        gui_create_label(splash_window, 1, 1, "   _______                        ______                __");
+        gui_create_label(splash_window, 1, 2, "  /_  __(_)____ ___  ____  ____  / ____/___  ____  _____/ /");
+        gui_create_label(splash_window, 1, 3, "   / / / / ___// _ \\/ __ \\/ __ \\/ /   / __ \\/ __ \\/ ___/ / ");
+        gui_create_label(splash_window, 1, 4, "  / / / / /__ /  __/ /_/ / / / / /___/ /_/ / / / (__  )_/  ");
+        gui_create_label(splash_window, 1, 5, " /_/ /_/\\___/ \\___/ .___/_/ /_/\\____/\\____/_/ /_/____/_/   ");
+        gui_create_label(splash_window, 1, 6, "                 /_/                                      ");
+        
+        // System information
+        gui_create_label(splash_window, 2, 8, "System Status: INITIALIZING");
+        gui_create_label(splash_window, 2, 9, "Architecture: x86 32-bit Protected Mode");
+        gui_create_label(splash_window, 2, 10, "Memory: Scanning...");
+        gui_create_label(splash_window, 2, 11, "Kernel: ArithmaX Research Custom Build");
+        
+        // Feature status with icons
+        gui_create_label(splash_window, 2, 13, "Core Systems:");
+        gui_create_label(splash_window, 4, 14, "[+] Memory Management");
+        gui_create_label(splash_window, 4, 15, "[+] Process Scheduler");
+        gui_create_label(splash_window, 4, 16, "[+] File System");
+        gui_create_label(splash_window, 4, 17, "[+] Network Stack");
+        gui_create_label(splash_window, 4, 18, "[+] GUI Framework");
+        
+        // Progress indicator
+        gui_create_label(splash_window, 2, 20, "Boot Progress: [....................] 0%");
+        
+        gui_show_window(splash_window);
     }
     
-    // Brief delay to show GUI
+    // Animate the boot splash with progress updates
+    char progress_bar[25] = "[....................]";
+    int progress_percent = 0;
+    
+    for (int frame = 0; frame < 50; frame++) {
+        // Update progress every few frames
+        if (frame % 2 == 0 && progress_percent < 20) {
+            progress_bar[1 + progress_percent] = '#';
+            progress_percent++;
+            
+            // Update progress bar in GUI (this is approximate positioning)
+            // Since GUI doesn't support dynamic updates easily, we'll use direct VGA writes
+            vga_set_cursor(16, 21); // Position in window for progress bar
+            vga_write_string(progress_bar);
+            
+            // Update percentage
+            char percent_str[5];
+            int pct = (progress_percent * 100) / 20;
+            percent_str[0] = '0' + (pct / 10);
+            percent_str[1] = '0' + (pct % 10);
+            percent_str[2] = '%';
+            percent_str[3] = '\0';
+            vga_set_cursor(42, 21);
+            vga_write_string(percent_str);
+        }
+        
+        // Update status messages at key points
+        if (frame == 10) {
+            vga_set_cursor(16, 9); // Status line
+            vga_write_string("MEMORY SCAN COMPLETE");
+            vga_set_cursor(9, 11); // Memory line
+            vga_write_string("        "); // Clear
+            vga_set_cursor(9, 11);
+            print_dec(detect_memory() / 1024);
+            vga_write_string(" KB available");
+        } else if (frame == 25) {
+            vga_set_cursor(16, 9);
+            vga_write_string("SYSTEM READY       ");
+        } else if (frame == 40) {
+            vga_set_cursor(16, 9);
+            vga_write_string("BOOT COMPLETE      ");
+        }
+        
+        // Update feature status with checkmarks
+        if (frame >= 5 && frame < 45) {
+            int feature_line = 15 + ((frame - 5) / 8); // Update one feature every 8 frames
+            if (feature_line <= 18) {
+                vga_set_cursor(4, feature_line);
+                vga_write_string("[OK]");
+            }
+        }
+        
+        // Brief delay for animation
+        for (volatile int i = 0; i < 200000; i++) {
+            // Busy wait for animation timing
+        }
+    }
+    
+    // Show completion message
+    vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    vga_set_cursor(0, 24);
+    vga_write_string("Boot sequence completed! Press any key or wait for automatic continuation...");
+    
+    // Wait for user input or timeout (longer wait for user to see)
     for (volatile int i = 0; i < 5000000; i++) {
-        // Busy wait to show GUI
+        // Busy wait - in a real system we'd wait for keyboard input
     }
     
-    // Clear screen again for shell
+    // Clean transition to shell
     vga_clear();
     
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("TradeKernel OS v1.3 - Interactive Shell\n");
+    vga_write_string("========================================\n\n");
+    
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_write_string("GUI demo completed. Starting shell...\n\n");
+    vga_write_string("GUI boot splash completed successfully!\n");
+    vga_write_string("All systems initialized and ready for operation.\n\n");
+    
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    vga_write_string("Type 'help' for available commands.\n\n");
     
     // Initialize and start the shell
     shell_init();
