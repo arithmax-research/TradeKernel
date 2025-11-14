@@ -8,6 +8,11 @@
 #define VGA_HEIGHT 25
 #define VGA_MEMORY 0xB8000
 
+// VGA graphics mode constants (mode 13h)
+#define VGA_GRAPHICS_WIDTH 320
+#define VGA_GRAPHICS_HEIGHT 200
+#define VGA_GRAPHICS_MEMORY 0xA0000
+
 // VGA colors
 typedef enum {
     VGA_COLOR_BLACK = 0,
@@ -35,5 +40,11 @@ void vga_putchar(char c);
 void vga_write_string(const char* str);
 void vga_set_color(vga_color_t fg, vga_color_t bg);
 void vga_set_cursor(size_t x, size_t y);
+
+// Graphics mode functions
+void vga_set_graphics_mode(void);
+void vga_set_text_mode(void);
+void vga_put_pixel(int x, int y, uint8_t color);
+uint8_t vga_get_pixel(int x, int y);
 
 #endif // VGA_H
