@@ -18,12 +18,12 @@ start:
 
     ; Load kernel from disk
     mov ah, 0x02        ; Read sectors function
-    mov al, 30          ; Number of sectors to read (kernel size)
+    mov al, 64          ; Number of sectors to read (increased for larger kernel)
     mov ch, 0           ; Cylinder
     mov cl, 2           ; Sector (start from sector 2, sector 1 is bootloader)
     mov dh, 0           ; Head
     mov dl, 0x80        ; Drive number (first hard disk)
-    mov bx, 0x1000      ; Load kernel at 0x1000:0x0000
+    mov bx, 0x1000      ; Load kernel at 0x1000:0x0000 (physical 0x10000)
     mov es, bx
     mov bx, 0
     int 0x13            ; BIOS disk interrupt
@@ -32,6 +32,10 @@ start:
 
     ; Print success message
     mov si, kernel_loaded_msg
+    call print_string
+
+    ; Print debug info
+    mov si, entering_protected_msg
     call print_string
 
     ; Enter protected mode
@@ -108,6 +112,7 @@ gdt_descriptor:
 ; Boot messages
 boot_msg db 'TradeKernel OS Booting...', 0x0D, 0x0A, 0
 kernel_loaded_msg db 'Kernel loaded successfully!', 0x0D, 0x0A, 0
+entering_protected_msg db 'Entering protected mode...', 0x0D, 0x0A, 0
 disk_error_msg db 'Disk read error!', 0x0D, 0x0A, 0
 
 ; Fill remaining space and add boot signature

@@ -179,7 +179,7 @@ $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
 
 # Run in QEMU - with disk image for filesystem support
 run: $(KERNEL_BIN)
-	qemu-system-i386 -drive format=raw,file=$(OS_IMG),if=ide -m 16M -nographic
+	qemu-system-i386 -drive format=raw,file=$(OS_IMG),if=ide -m 16M
 
 # Run with disk image (traditional boot)
 run-disk: $(OS_IMG)

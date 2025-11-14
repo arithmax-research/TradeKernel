@@ -17,6 +17,30 @@
 #include "gui.h" // GUI framework
 #include "drivers/mouse.h" // Mouse driver
 
+// Simple serial output for debugging
+#define COM1 0x3F8
+
+static void serial_init(void) {
+    outb(COM1 + 1, 0x00); // Disable interrupts
+    outb(COM1 + 3, 0x80); // Enable DLAB
+    outb(COM1 + 0, 0x03); // Set divisor low byte (38400 baud)
+    outb(COM1 + 1, 0x00); // Set divisor high byte
+    outb(COM1 + 3, 0x03); // 8 bits, no parity, one stop bit
+    outb(COM1 + 2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
+    outb(COM1 + 4, 0x0B); // IRQs enabled, RTS/DSR set
+}
+
+static void serial_putchar(char c) {
+    while ((inb(COM1 + 5) & 0x20) == 0); // Wait for transmit buffer empty
+    outb(COM1, c);
+}
+
+static void serial_write_string(const char* str) {
+    while (*str) {
+        serial_putchar(*str++);
+    }
+}
+
 // Simple string formatting functions
 void print_hex(uint32_t value) {
     char hex_chars[] = "0123456789ABCDEF";
@@ -137,6 +161,10 @@ void display_loading_screen(void) {
 
 // Kernel main function - called from bootloader
 void kernel_main(void) {
+    // Initialize serial port for debugging
+    serial_init();
+    serial_write_string("Serial initialized\n");
+    
     // Display loading screen
     display_loading_screen();
     
@@ -169,12 +197,14 @@ void kernel_main(void) {
     gui_init();
     
     // Initialize mouse
-    mouse_init();
+    // mouse_init(); // TEMPORARILY DISABLED
     
-    // TEMPORARILY DISABLE TERMINAL WINDOW
-    // window_t* term_win = gui_create_terminal_window(5, 3, 70, 20, "TradeKernel Terminal");
-    // gui_show_window(term_win);
-    // shell_set_terminal_window(term_win);
+    // Create terminal window
+    window_t* term_win = gui_create_terminal_window(5, 3, 70, 20, "TradeKernel Terminal");
+    gui_show_window(term_win);
+    
+    // Set terminal window for shell output
+    shell_set_terminal_window(term_win);
     
     vga_write_string("Initializing file system...\n");
     int fs_result = fs_init();
@@ -406,8 +436,23 @@ void kernel_main(void) {
     // Clean transition to shell
     vga_clear();
     
+    // Debug output
+    serial_write_string("About to destroy splash window\n");
+    
+    // Destroy the splash window before redrawing
+    if (splash_window) {
+        gui_destroy_window(splash_window);
+        splash_window = NULL;
+    }
+    
+    // Debug output
+    serial_write_string("About to call gui_redraw_all\n");
+    
     // Redraw GUI after clearing screen
     gui_redraw_all();
+    
+    // Debug output
+    serial_write_string("gui_redraw_all completed\n");
     
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("TradeKernel OS v1.3 - Interactive Shell\n");
