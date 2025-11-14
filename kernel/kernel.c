@@ -171,12 +171,10 @@ void kernel_main(void) {
     // Initialize mouse
     mouse_init();
     
-    // Create terminal window
-    window_t* term_win = gui_create_terminal_window(5, 3, 70, 20, "TradeKernel Terminal");
-    gui_show_window(term_win);
-    
-    // Set terminal window for shell output
-    shell_set_terminal_window(term_win);
+    // TEMPORARILY DISABLE TERMINAL WINDOW
+    // window_t* term_win = gui_create_terminal_window(5, 3, 70, 20, "TradeKernel Terminal");
+    // gui_show_window(term_win);
+    // shell_set_terminal_window(term_win);
     
     vga_write_string("Initializing file system...\n");
     int fs_result = fs_init();
@@ -408,8 +406,8 @@ void kernel_main(void) {
     // Clean transition to shell
     vga_clear();
     
-    // TEMPORARILY DISABLE GUI REDRAW
-    // gui_redraw_all();
+    // Redraw GUI after clearing screen
+    gui_redraw_all();
     
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("TradeKernel OS v1.3 - Interactive Shell\n");
