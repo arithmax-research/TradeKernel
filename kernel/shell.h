@@ -13,11 +13,14 @@ typedef struct {
     void (*handler)(int argc, char* argv[]);
 } shell_command_t;
 
+#include "gui.h" // For window_t
+
 // Shell functions
 void shell_init(void);
 void shell_run(void);
 void shell_process_input(char c);
 void shell_execute_command(const char* command_line);
+void shell_set_terminal_window(window_t* window);
 
 // Built-in commands
 void cmd_help(int argc, char* argv[]);

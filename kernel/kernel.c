@@ -14,16 +14,8 @@
 #include "net/tcp.h"
 #include "net/socket.h"
 #include "net/websocket.h"
-#include "gui.h" // GUI frameworkdrivers/vga.h"
-#include "mm/memory.h"
-#include "mm/paging.h"
-#include "arch/interrupts.h"
-#include "shell.h"
-#include "fs/fs.h"
-#include "proc/process.h"
-#include "proc/scheduler.h"
-#include "proc/syscalls.h" // System calls enabled
-#include "proc/ipc.h" // IPC enabled
+#include "gui.h" // GUI framework
+#include "drivers/mouse.h" // Mouse driver
 
 // Simple string formatting functions
 void print_hex(uint32_t value) {
@@ -176,6 +168,16 @@ void kernel_main(void) {
     vga_write_string("Initializing GUI framework...\n");
     gui_init();
     
+    // Initialize mouse
+    mouse_init();
+    
+    // Create terminal window
+    window_t* term_win = gui_create_terminal_window(5, 3, 70, 20, "TradeKernel Terminal");
+    gui_show_window(term_win);
+    
+    // Set terminal window for shell output
+    shell_set_terminal_window(term_win);
+    
     vga_write_string("Initializing file system...\n");
     int fs_result = fs_init();
     if (fs_result == FS_ERROR_NOT_FOUND) {
@@ -223,6 +225,8 @@ void kernel_main(void) {
         }
         vga_write_string(")\n");
     }
+    
+    // Initialize network stack
     
     // Initialize network stack
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
@@ -396,13 +400,16 @@ void kernel_main(void) {
     vga_set_cursor(0, 24);
     vga_write_string("Boot sequence completed! Press any key or wait for automatic continuation...");
     
-    // Wait for user input or timeout (longer wait for user to see)
-    for (volatile int i = 0; i < 5000000; i++) {
+    // Wait for user input or timeout (shorter wait)
+    for (volatile int i = 0; i < 1000000; i++) {
         // Busy wait - in a real system we'd wait for keyboard input
     }
     
     // Clean transition to shell
     vga_clear();
+    
+    // TEMPORARILY DISABLE GUI REDRAW
+    // gui_redraw_all();
     
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("TradeKernel OS v1.3 - Interactive Shell\n");
@@ -417,6 +424,10 @@ void kernel_main(void) {
     
     // Initialize and start the shell
     shell_init();
+    
+    // Ensure shell prompt is visible
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    vga_write_string("\nShell ready - you can now type commands!\n");
     
     // Keep the kernel alive
     while (1) {

@@ -11,6 +11,31 @@
 
 static char command_buffer[MAX_COMMAND_LENGTH];
 static int buffer_pos = 0;
+static window_t* terminal_window = NULL; // Terminal window for output
+
+// Shell output functions that write to both VGA and terminal window
+static void shell_putchar(char c) {
+    vga_putchar(c);
+    if (terminal_window) {
+        gui_terminal_putchar(terminal_window, c);
+    }
+}
+
+static void shell_write_string(const char* str) {
+    vga_write_string(str);
+    if (terminal_window) {
+        gui_terminal_write(terminal_window, str);
+    }
+}
+
+static void shell_set_color(vga_color_t fg, vga_color_t bg) {
+    vga_set_color(fg, bg);
+    // Terminal window uses its own colors
+}
+
+void shell_set_terminal_window(window_t* window) {
+    terminal_window = window;
+}
 
 // Forward declarations for command functions
 void cmd_help(int argc, char* argv[]);
@@ -36,6 +61,7 @@ void cmd_cp(int argc, char* argv[]);
 void cmd_mv(int argc, char* argv[]);
 void cmd_reboot(int argc, char* argv[]);
 void cmd_websocket_test(int argc, char* argv[]);
+void cmd_search(int argc, char* argv[]);
 
 // Built-in commands table
 static shell_command_t commands[] = {
@@ -62,20 +88,21 @@ static shell_command_t commands[] = {
     {"mv", "Move/rename file", cmd_mv},
     {"reboot", "Restart the system", cmd_reboot},
     {"wstest", "Test WebSocket connection to Binance", cmd_websocket_test},
+    {"search", "Search terminal output", cmd_search},
 };
 
 void shell_init(void) {
     buffer_pos = 0;
     command_buffer[0] = '\0';
     
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_write_string("$ ");
+    shell_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    shell_write_string("$ ");
 }
 
 // Simple number printing function
 static void print_dec(uint32_t value) {
     if (value == 0) {
-        vga_putchar('0');
+        shell_putchar('0');
         return;
     }
     
@@ -89,7 +116,7 @@ static void print_dec(uint32_t value) {
     
     // Reverse the string
     for (int j = i - 1; j >= 0; j--) {
-        vga_putchar(buffer[j]);
+        shell_putchar(buffer[j]);
     }
 }
 
@@ -139,7 +166,7 @@ static int parse_args(char* command_line, char* argv[]) {
 void shell_process_input(char c) {
     if (c == '\n' || c == '\r') {
         // Execute command
-        vga_putchar('\n');
+        shell_putchar('\n');
         command_buffer[buffer_pos] = '\0';
         
         if (buffer_pos > 0) {
@@ -148,19 +175,19 @@ void shell_process_input(char c) {
         
         // Reset for next command
         buffer_pos = 0;
-        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-        vga_write_string("$ ");
+        shell_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        shell_write_string("$ ");
     } else if (c == '\b') {
         // Backspace
         if (buffer_pos > 0) {
             buffer_pos--;
-            vga_putchar('\b');
+            shell_putchar('\b');
         }
     } else if (c >= 32 && c <= 126) {
         // Printable character
         if (buffer_pos < MAX_COMMAND_LENGTH - 1) {
             command_buffer[buffer_pos++] = c;
-            vga_putchar(c);
+            shell_putchar(c);
         }
     }
 }
@@ -187,47 +214,51 @@ void shell_execute_command(const char* command_line) {
     }
     
     // Command not found
-    vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-    vga_write_string("Command not found: ");
-    vga_write_string(argv[0]);
-    vga_write_string("\nType 'help' for available commands.\n");
+    shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+    shell_write_string("Command not found: ");
+    shell_write_string(argv[0]);
+    shell_write_string("\nType 'help' for available commands.\n");
 }
 
 // Built-in command implementations
 void cmd_help(int argc, char* argv[]) {
     (void)argc; (void)argv; // Suppress unused parameter warnings
     
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("TradeKernel OS - Available Commands:\n\n");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("TradeKernel OS - Available Commands:\n\n");
     
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     for (int i = 0; commands[i].name != NULL; i++) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string(commands[i].name);
-        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-        vga_write_string(" - ");
-        vga_write_string(commands[i].description);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string(commands[i].name);
+        shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        shell_write_string(" - ");
+        shell_write_string(commands[i].description);
+        shell_write_string("\n");
     }
-    vga_write_string("\n");
+    shell_write_string("\n");
 }
 
 void cmd_clear(int argc, char* argv[]) {
     (void)argc; (void)argv;
-    vga_clear();
+    if (terminal_window) {
+        gui_terminal_clear(terminal_window);
+    } else {
+        vga_clear();
+    }
 }
 
 void cmd_info(int argc, char* argv[]) {
     (void)argc; (void)argv;
     
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("=== System Information ===\n");
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    vga_write_string("OS: TradeKernel v1.0\n");
-    vga_write_string("Architecture: x86 (32-bit)\n");
-    vga_write_string("Memory: 16MB\n");
-    vga_write_string("VGA Mode: 80x25 text\n");
-    vga_write_string("Status: Running\n\n");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("=== System Information ===\n");
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_write_string("OS: TradeKernel v1.0\n");
+    shell_write_string("Architecture: x86 (32-bit)\n");
+    shell_write_string("Memory: 16MB\n");
+    shell_write_string("VGA Mode: 80x25 text\n");
+    shell_write_string("Status: Running\n\n");
 }
 
 void cmd_mem(int argc, char* argv[]) {
@@ -237,18 +268,18 @@ void cmd_mem(int argc, char* argv[]) {
     size_t free = get_free_memory();
     size_t used = total - free;
     
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("=== Memory Usage ===\n");
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    vga_write_string("Total Heap: ");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("=== Memory Usage ===\n");
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_write_string("Total Heap: ");
     print_dec(total / 1024);
-    vga_write_string(" KB\n");
-    vga_write_string("Used: ");
+    shell_write_string(" KB\n");
+    shell_write_string("Used: ");
     print_dec(used / 1024);
-    vga_write_string(" KB\n");
-    vga_write_string("Free: ");
+    shell_write_string(" KB\n");
+    shell_write_string("Free: ");
     print_dec(free / 1024);
-    vga_write_string(" KB\n\n");
+    shell_write_string(" KB\n\n");
 }
 
 void cmd_memstats(int argc, char* argv[]) {
@@ -267,13 +298,13 @@ void cmd_memcheck(int argc, char* argv[]) {
     int errors = check_heap_integrity();
     
     if (errors == 0) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("Heap integrity check passed.\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("Heap integrity check passed.\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Heap integrity check failed with ");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Heap integrity check failed with ");
         print_dec(errors);
-        vga_write_string(" errors.\n");
+        shell_write_string(" errors.\n");
     }
 }
 
@@ -284,24 +315,24 @@ void cmd_pgstats(int argc, char* argv[]) {
 
 void cmd_echo(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
-        vga_write_string(argv[i]);
-        if (i < argc - 1) vga_write_string(" ");
+        shell_write_string(argv[i]);
+        if (i < argc - 1) shell_write_string(" ");
     }
-    vga_write_string("\n");
+    shell_write_string("\n");
 }
 
 void cmd_reboot(int argc, char* argv[]) {
     (void)argc; (void)argv;
     
-    vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-    vga_write_string("Rebooting system...\n");
+    shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+    shell_write_string("Rebooting system...\n");
     
     // Simple reboot via keyboard controller
     uint8_t temp = 0xFE;
     __asm__ volatile ("outb %0, $0x64" : : "a"(temp));
     
     // If that doesn't work, halt
-    vga_write_string("Reboot failed. System halted.\n");
+    shell_write_string("Reboot failed. System halted.\n");
     while (1) {
         __asm__ volatile ("hlt");
     }
@@ -318,48 +349,48 @@ void cmd_ls(int argc, char* argv[]) {
     int count = fs_list_directory(path, entries, 32);
     
     if (count < 0) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
         if (count == FS_ERROR_NOT_FOUND) {
-            vga_write_string("Directory not found: ");
-            vga_write_string(path);
+            shell_write_string("Directory not found: ");
+            shell_write_string(path);
         } else if (count == FS_ERROR_INVALID) {
-            vga_write_string("Not a directory: ");
-            vga_write_string(path);
+            shell_write_string("Not a directory: ");
+            shell_write_string(path);
         } else {
-            vga_write_string("Error reading directory");
+            shell_write_string("Error reading directory");
         }
-        vga_write_string("\n");
+        shell_write_string("\n");
         return;
     }
     
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Contents of ");
-    vga_write_string(path);
-    vga_write_string(":\n");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Contents of ");
+    shell_write_string(path);
+    shell_write_string(":\n");
     
     if (count == 0) {
-        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-        vga_write_string("  (empty directory)\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        shell_write_string("  (empty directory)\n");
         return;
     }
     
     for (int i = 0; i < count; i++) {
         if (entries[i].file_type == FILE_TYPE_DIRECTORY) {
-            vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
-            vga_write_string("  [DIR]  ");
+            shell_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+            shell_write_string("  [DIR]  ");
         } else {
-            vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-            vga_write_string("  [FILE] ");
+            shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+            shell_write_string("  [FILE] ");
         }
-        vga_write_string(entries[i].name);
-        vga_write_string("\n");
+        shell_write_string(entries[i].name);
+        shell_write_string("\n");
     }
 }
 
 void cmd_mkdir(int argc, char* argv[]) {
     if (argc < 2) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Usage: mkdir <directory_name>\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: mkdir <directory_name>\n");
         return;
     }
     
@@ -367,34 +398,34 @@ void cmd_mkdir(int argc, char* argv[]) {
     int result = fs_create_directory(dir_path);
     
     if (result == FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("Directory created: ");
-        vga_write_string(dir_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("Directory created: ");
+        shell_write_string(dir_path);
+        shell_write_string("\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to create directory: ");
-        vga_write_string(dir_path);
-        vga_write_string(" (error: ");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to create directory: ");
+        shell_write_string(dir_path);
+        shell_write_string(" (error: ");
         
         switch (result) {
             case FS_ERROR_EXISTS:
-                vga_write_string("already exists");
+                shell_write_string("already exists");
                 break;
             case FS_ERROR_NOT_FOUND:
-                vga_write_string("parent not found");
+                shell_write_string("parent not found");
                 break;
             case FS_ERROR_NO_SPACE:
-                vga_write_string("no space");
+                shell_write_string("no space");
                 break;
             case FS_ERROR_INVALID:
-                vga_write_string("invalid path");
+                shell_write_string("invalid path");
                 break;
             case FS_ERROR_NO_MEMORY:
-                vga_write_string("no memory");
+                shell_write_string("no memory");
                 break;
             default:
-                vga_write_string("unknown error ");
+                shell_write_string("unknown error ");
                 // Print error code
                 char code_str[10];
                 int temp = result;
@@ -405,22 +436,22 @@ void cmd_mkdir(int argc, char* argv[]) {
                     temp /= 10;
                 } while (temp > 0 && i < 9);
                 if (result < 0) {
-                    vga_write_string("-");
+                    shell_write_string("-");
                 }
                 while (i > 0) {
-                    vga_putchar(code_str[--i]);
+                    shell_putchar(code_str[--i]);
                 }
                 break;
         }
         
-        vga_write_string(")\n");
+        shell_write_string(")\n");
     }
 }
 
 void cmd_touch(int argc, char* argv[]) {
     if (argc < 2) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Usage: touch <filename>\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: touch <filename>\n");
         return;
     }
     
@@ -428,30 +459,30 @@ void cmd_touch(int argc, char* argv[]) {
     int result = fs_create_file(file_path, FILE_TYPE_REGULAR);
     
     if (result == FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("File created: ");
-        vga_write_string(file_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("File created: ");
+        shell_write_string(file_path);
+        shell_write_string("\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
         if (result == FS_ERROR_EXISTS) {
-            vga_write_string("File already exists: ");
+            shell_write_string("File already exists: ");
         } else if (result == FS_ERROR_NOT_FOUND) {
-            vga_write_string("Parent directory not found: ");
+            shell_write_string("Parent directory not found: ");
         } else if (result == FS_ERROR_NO_SPACE) {
-            vga_write_string("No space left on device: ");
+            shell_write_string("No space left on device: ");
         } else {
-            vga_write_string("Failed to create file: ");
+            shell_write_string("Failed to create file: ");
         }
-        vga_write_string(file_path);
-        vga_write_string("\n");
+        shell_write_string(file_path);
+        shell_write_string("\n");
     }
 }
 
 void cmd_rm(int argc, char* argv[]) {
     if (argc < 2) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Usage: rm <filename>\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: rm <filename>\n");
         return;
     }
     
@@ -459,26 +490,26 @@ void cmd_rm(int argc, char* argv[]) {
     int result = fs_delete_file(file_path);
     
     if (result == FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("File deleted: ");
-        vga_write_string(file_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("File deleted: ");
+        shell_write_string(file_path);
+        shell_write_string("\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
         if (result == FS_ERROR_NOT_FOUND) {
-            vga_write_string("File not found: ");
+            shell_write_string("File not found: ");
         } else {
-            vga_write_string("Failed to delete file: ");
+            shell_write_string("Failed to delete file: ");
         }
-        vga_write_string(file_path);
-        vga_write_string("\n");
+        shell_write_string(file_path);
+        shell_write_string("\n");
     }
 }
 
 void cmd_cat(int argc, char* argv[]) {
     if (argc < 2) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Usage: cat <filename>\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: cat <filename>\n");
         return;
     }
     
@@ -486,29 +517,29 @@ void cmd_cat(int argc, char* argv[]) {
     int fd = fs_open(file_path, 0);  // Read-only
     
     if (fd < 0) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
         if (fd == FS_ERROR_NOT_FOUND) {
-            vga_write_string("File not found: ");
+            shell_write_string("File not found: ");
         } else {
-            vga_write_string("Failed to open file: ");
+            shell_write_string("Failed to open file: ");
         }
-        vga_write_string(file_path);
-        vga_write_string("\n");
+        shell_write_string(file_path);
+        shell_write_string("\n");
         return;
     }
     
     // Get file size first
     inode_t inode_info;
     if (fs_stat(file_path, &inode_info) != FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to get file information\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to get file information\n");
         fs_close(fd);
         return;
     }
     
     if (inode_info.size == 0) {
-        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-        vga_write_string("(empty file)\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        shell_write_string("(empty file)\n");
         fs_close(fd);
         return;
     }
@@ -517,7 +548,7 @@ void cmd_cat(int argc, char* argv[]) {
     char buffer[513];  // 512 bytes + null terminator
     uint32_t total_read = 0;
     
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    shell_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
     
     while (total_read < inode_info.size) {
         uint32_t to_read = (inode_info.size - total_read > 512) ? 512 : (inode_info.size - total_read);
@@ -535,20 +566,20 @@ void cmd_cat(int argc, char* argv[]) {
                 // Stop at first null byte (though files shouldn't contain nulls)
                 break;
             }
-            vga_putchar(buffer[i]);
+            shell_putchar(buffer[i]);
         }
         
         total_read += bytes_read;
     }
     
-    vga_write_string("\n");
+    shell_write_string("\n");
     fs_close(fd);
 }
 
 void cmd_cp(int argc, char* argv[]) {
     if (argc < 3) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Usage: cp <source> <destination>\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: cp <source> <destination>\n");
         return;
     }
     
@@ -557,32 +588,32 @@ void cmd_cp(int argc, char* argv[]) {
     
     // Check if destination already exists
     if (fs_exists(dst_path)) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Destination already exists: ");
-        vga_write_string(dst_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Destination already exists: ");
+        shell_write_string(dst_path);
+        shell_write_string("\n");
         return;
     }
     
     // Open source file
     int src_fd = fs_open(src_path, 0);  // Read-only
     if (src_fd < 0) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
         if (src_fd == FS_ERROR_NOT_FOUND) {
-            vga_write_string("Source file not found: ");
+            shell_write_string("Source file not found: ");
         } else {
-            vga_write_string("Failed to open source file: ");
+            shell_write_string("Failed to open source file: ");
         }
-        vga_write_string(src_path);
-        vga_write_string("\n");
+        shell_write_string(src_path);
+        shell_write_string("\n");
         return;
     }
     
     // Get source file info
     inode_t src_inode;
     if (fs_stat(src_path, &src_inode) != FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to get source file information\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to get source file information\n");
         fs_close(src_fd);
         return;
     }
@@ -590,10 +621,10 @@ void cmd_cp(int argc, char* argv[]) {
     // Create destination file
     int result = fs_create_file(dst_path, FILE_TYPE_REGULAR);
     if (result != FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to create destination file: ");
-        vga_write_string(dst_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to create destination file: ");
+        shell_write_string(dst_path);
+        shell_write_string("\n");
         fs_close(src_fd);
         return;
     }
@@ -601,8 +632,8 @@ void cmd_cp(int argc, char* argv[]) {
     // Open destination file for writing
     int dst_fd = fs_open(dst_path, 1);  // Write-only (assuming flag 1 means write)
     if (dst_fd < 0) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to open destination file for writing\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to open destination file for writing\n");
         fs_close(src_fd);
         return;
     }
@@ -634,15 +665,15 @@ void cmd_cp(int argc, char* argv[]) {
     fs_close(dst_fd);
     
     if (success) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("File copied: ");
-        vga_write_string(src_path);
-        vga_write_string(" -> ");
-        vga_write_string(dst_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("File copied: ");
+        shell_write_string(src_path);
+        shell_write_string(" -> ");
+        shell_write_string(dst_path);
+        shell_write_string("\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to copy file\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to copy file\n");
         // Try to remove the incomplete destination file
         fs_delete_file(dst_path);
     }
@@ -650,8 +681,8 @@ void cmd_cp(int argc, char* argv[]) {
 
 void cmd_mv(int argc, char* argv[]) {
     if (argc < 3) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Usage: mv <source> <destination>\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: mv <source> <destination>\n");
         return;
     }
     
@@ -660,19 +691,19 @@ void cmd_mv(int argc, char* argv[]) {
     
     // Check if source exists
     if (!fs_exists(src_path)) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Source file not found: ");
-        vga_write_string(src_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Source file not found: ");
+        shell_write_string(src_path);
+        shell_write_string("\n");
         return;
     }
     
     // Check if destination already exists
     if (fs_exists(dst_path)) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Destination already exists: ");
-        vga_write_string(dst_path);
-        vga_write_string("\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Destination already exists: ");
+        shell_write_string(dst_path);
+        shell_write_string("\n");
         return;
     }
     
@@ -680,16 +711,16 @@ void cmd_mv(int argc, char* argv[]) {
     // Open source file
     int src_fd = fs_open(src_path, 0);  // Read-only
     if (src_fd < 0) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to open source file\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to open source file\n");
         return;
     }
     
     // Get source file info
     inode_t src_inode;
     if (fs_stat(src_path, &src_inode) != FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to get source file information\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to get source file information\n");
         fs_close(src_fd);
         return;
     }
@@ -697,8 +728,8 @@ void cmd_mv(int argc, char* argv[]) {
     // Create destination file
     int result = fs_create_file(dst_path, FILE_TYPE_REGULAR);
     if (result != FS_SUCCESS) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to create destination file\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to create destination file\n");
         fs_close(src_fd);
         return;
     }
@@ -706,8 +737,8 @@ void cmd_mv(int argc, char* argv[]) {
     // Open destination file for writing
     int dst_fd = fs_open(dst_path, 1);  // Write-only
     if (dst_fd < 0) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to open destination file for writing\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to open destination file for writing\n");
         fs_close(src_fd);
         return;
     }
@@ -741,20 +772,20 @@ void cmd_mv(int argc, char* argv[]) {
     if (success) {
         // Delete the source file
         if (fs_delete_file(src_path) == FS_SUCCESS) {
-            vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-            vga_write_string("File moved: ");
-            vga_write_string(src_path);
-            vga_write_string(" -> ");
-            vga_write_string(dst_path);
-            vga_write_string("\n");
+            shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+            shell_write_string("File moved: ");
+            shell_write_string(src_path);
+            shell_write_string(" -> ");
+            shell_write_string(dst_path);
+            shell_write_string("\n");
         } else {
-            vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-            vga_write_string("Failed to remove source file after copy\n");
+            shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+            shell_write_string("Failed to remove source file after copy\n");
             // Destination file exists but source still exists - inconsistent state
         }
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to move file\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to move file\n");
         // Clean up the incomplete destination file
         fs_delete_file(dst_path);
     }
@@ -763,11 +794,11 @@ void cmd_mv(int argc, char* argv[]) {
 // Process management commands
 void cmd_ps(int argc, char* argv[]) {
     (void)argc; (void)argv;  // Suppress unused parameter warnings
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Process List:\n");
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_write_string("PID  PPID PRIO STATE    CPU%  MEMORY  NAME\n");
-    vga_write_string("---  ---- ---- -------- ----  ------  ----\n");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Process List:\n");
+    shell_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    shell_write_string("PID  PPID PRIO STATE    CPU%  MEMORY  NAME\n");
+    shell_write_string("---  ---- ---- -------- ----  ------  ----\n");
     
     // Display process information
     process_show_all_processes();
@@ -775,17 +806,17 @@ void cmd_ps(int argc, char* argv[]) {
 
 void cmd_schedstat(int argc, char* argv[]) {
     (void)argc; (void)argv;  // Suppress unused parameter warnings
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Scheduler Statistics:\n");
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Scheduler Statistics:\n");
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     
     scheduler_show_stats();
 }
 
 void cmd_procinfo(int argc, char* argv[]) {
     if (argc < 2) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Usage: procinfo <pid>\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: procinfo <pid>\n");
         return;
     }
     
@@ -798,96 +829,96 @@ void cmd_procinfo(int argc, char* argv[]) {
     }
     
     if (pid == 0) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Invalid PID\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Invalid PID\n");
         return;
     }
     
     process_t* proc = process_find_by_pid(pid);
     if (!proc) {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Process not found\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Process not found\n");
         return;
     }
     
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Process Information:\n");
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Process Information:\n");
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     
-    vga_write_string("  PID: ");
+    shell_write_string("  PID: ");
     print_dec(proc->pid);
-    vga_write_string("\n");
+    shell_write_string("\n");
     
-    vga_write_string("  Parent PID: ");
+    shell_write_string("  Parent PID: ");
     print_dec(proc->ppid);
-    vga_write_string("\n");
+    shell_write_string("\n");
     
-    vga_write_string("  Priority: ");
+    shell_write_string("  Priority: ");
     print_dec(proc->priority);
-    vga_write_string("\n");
+    shell_write_string("\n");
     
-    vga_write_string("  State: ");
+    shell_write_string("  State: ");
     switch (proc->state) {
-        case PROCESS_RUNNING: vga_write_string("RUNNING"); break;
-        case PROCESS_READY: vga_write_string("READY"); break;
-        case PROCESS_BLOCKED: vga_write_string("BLOCKED"); break;
-        case PROCESS_SLEEPING: vga_write_string("SLEEPING"); break;
-        case PROCESS_ZOMBIE: vga_write_string("ZOMBIE"); break;
-        default: vga_write_string("UNKNOWN"); break;
+        case PROCESS_RUNNING: shell_write_string("RUNNING"); break;
+        case PROCESS_READY: shell_write_string("READY"); break;
+        case PROCESS_BLOCKED: shell_write_string("BLOCKED"); break;
+        case PROCESS_SLEEPING: shell_write_string("SLEEPING"); break;
+        case PROCESS_ZOMBIE: shell_write_string("ZOMBIE"); break;
+        default: shell_write_string("UNKNOWN"); break;
     }
-    vga_write_string("\n");
+    shell_write_string("\n");
     
-    vga_write_string("  CPU Time: ");
+    shell_write_string("  CPU Time: ");
     print_dec(proc->cpu_time);
-    vga_write_string(" ticks\n");
+    shell_write_string(" ticks\n");
     
-    vga_write_string("  Memory Used: ");
+    shell_write_string("  Memory Used: ");
     print_dec(proc->memory_used);
-    vga_write_string(" bytes\n");
+    shell_write_string(" bytes\n");
 }
 
 void cmd_testfork(int argc, char* argv[]) {
     (void)argc; (void)argv;  // Suppress unused parameter warnings
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Testing fork() system call...\n");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Testing fork() system call...\n");
     
     // Create a simple test process
     process_t* child = process_create("test_child", NULL, PRIORITY_NORMAL);
     if (child) {
         scheduler_add_process(child);
         
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("Child process created with PID: ");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("Child process created with PID: ");
         print_dec(child->pid);
-        vga_write_string("\n");
+        shell_write_string("\n");
         
         // Simulate some work for the child
         child->cpu_time = 10;
         child->memory_used = 4096;
         
-        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-        vga_write_string("Note: This is a demonstration - child process will be cleaned up.\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        shell_write_string("Note: This is a demonstration - child process will be cleaned up.\n");
         
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to create child process\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to create child process\n");
     }
 }
 
 // TODO: Re-enable when IPC is fixed
 void cmd_testipc(int argc, char* argv[]) {
     (void)argc; (void)argv; // Suppress unused parameter warnings
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Testing Inter-Process Communication...\n");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Testing Inter-Process Communication...\n");
     
     // Test shared memory pool
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    vga_write_string("Creating shared memory pool...\n");
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_write_string("Creating shared memory pool...\n");
     
     shared_pool_t* pool = create_shared_pool(sizeof(market_data_t), 100);
     if (pool) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("Shared memory pool created successfully\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("Shared memory pool created successfully\n");
         
         // Test allocation
         market_data_t* data = (market_data_t*)shared_pool_alloc(pool);
@@ -898,33 +929,33 @@ void cmd_testipc(int argc, char* argv[]) {
             data->symbol_id = 1;
             data->side = 0; // bid
             
-            vga_write_string("Test market data allocated and filled\n");
+            shell_write_string("Test market data allocated and filled\n");
             
             shared_pool_free(pool, data);
-            vga_write_string("Memory freed successfully\n");
+            shell_write_string("Memory freed successfully\n");
         }
         
         destroy_shared_pool(pool);
-        vga_write_string("Shared memory pool destroyed\n");
+        shell_write_string("Shared memory pool destroyed\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to create shared memory pool\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to create shared memory pool\n");
     }
 }
 
 // TODO: Re-enable when IPC is fixed
 void cmd_msgtest(int argc, char* argv[]) {
     (void)argc; (void)argv; // Suppress unused parameter warnings
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Testing Message Queues...\n");
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Testing Message Queues...\n");
     
     // Create a message queue
     uint32_t queue_id = msgget(0x1234, 0x200); // IPC_CREAT
     if (queue_id != (uint32_t)-1) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("Message queue created with ID: ");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("Message queue created with ID: ");
         print_dec(queue_id);
-        vga_write_string("\n");
+        shell_write_string("\n");
         
         // Test sending a message
         message_t msg;
@@ -945,38 +976,38 @@ void cmd_msgtest(int argc, char* argv[]) {
         
         int result = msgsnd(queue_id, &msg, sizeof(market_data_t), 0);
         if (result == 0) {
-            vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-            vga_write_string("Message sent successfully\n");
+            shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+            shell_write_string("Message sent successfully\n");
             
             // Test receiving the message
             message_t recv_msg;
             result = msgrcv(queue_id, &recv_msg, sizeof(market_data_t), MSG_MARKET_DATA, 0x800);
             if (result > 0) {
-                vga_write_string("Message received successfully\n");
+                shell_write_string("Message received successfully\n");
                 
                 // Verify data
                 market_data_t* received_data = (market_data_t*)recv_msg.data;
-                vga_write_string("Received data - Symbol: ");
+                shell_write_string("Received data - Symbol: ");
                 print_dec(received_data->symbol_id);
-                vga_write_string(", Volume: ");
+                shell_write_string(", Volume: ");
                 print_dec((uint32_t)received_data->volume);
-                vga_write_string("\n");
+                shell_write_string("\n");
             } else {
-                vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-                vga_write_string("Failed to receive message\n");
+                shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+                shell_write_string("Failed to receive message\n");
             }
         } else {
-            vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-            vga_write_string("Failed to send message\n");
+            shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+            shell_write_string("Failed to send message\n");
         }
         
         // Clean up
         msgctl(queue_id, 0, NULL); // IPC_RMID
-        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-        vga_write_string("Message queue destroyed\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        shell_write_string("Message queue destroyed\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("Failed to create message queue\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Failed to create message queue\n");
     }
 }
 
@@ -984,48 +1015,67 @@ void cmd_websocket_test(int argc, char* argv[]) {
     (void)argc; // Suppress unused parameter warning
     (void)argv; // Suppress unused parameter warning
     
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_write_string("Testing Network Stack Components...\n");
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    shell_write_string("Testing Network Stack Components...\n");
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     
     // Phase 1: Test basic network initialization
-    vga_write_string("Phase 1: Network Stack Status\n");
-    vga_write_string("  - RTL8139 Ethernet Driver: Initialized\n");
-    vga_write_string("  - IPv4 Protocol Stack: Ready\n");
-    vga_write_string("  - TCP Protocol: Active\n");
-    vga_write_string("  - Socket API: Available\n");
+    shell_write_string("Phase 1: Network Stack Status\n");
+    shell_write_string("  - RTL8139 Ethernet Driver: Initialized\n");
+    shell_write_string("  - IPv4 Protocol Stack: Ready\n");
+    shell_write_string("  - TCP Protocol: Active\n");
+    shell_write_string("  - Socket API: Available\n");
     
     // Phase 2: Test socket creation (safe test)
-    vga_write_string("Phase 2: Testing Socket Creation...\n");
+    shell_write_string("Phase 2: Testing Socket Creation...\n");
     int test_socket = socket_create(AF_INET, SOCK_STREAM, 0);
     if (test_socket >= 0) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("  - Socket creation: SUCCESS\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("  - Socket creation: SUCCESS\n");
         socket_close(test_socket);
-        vga_write_string("  - Socket cleanup: SUCCESS\n");
+        shell_write_string("  - Socket cleanup: SUCCESS\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("  - Socket creation: FAILED\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("  - Socket creation: FAILED\n");
     }
     
     // Phase 3: Memory allocation test
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    vga_write_string("Phase 3: Testing Memory Allocation...\n");
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_write_string("Phase 3: Testing Memory Allocation...\n");
     void* test_mem = kmalloc(1024);
     if (test_mem) {
-        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        vga_write_string("  - Memory allocation: SUCCESS\n");
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("  - Memory allocation: SUCCESS\n");
         kfree(test_mem);
-        vga_write_string("  - Memory deallocation: SUCCESS\n");
+        shell_write_string("  - Memory deallocation: SUCCESS\n");
     } else {
-        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-        vga_write_string("  - Memory allocation: FAILED\n");
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("  - Memory allocation: FAILED\n");
     }
     
-    vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
-    vga_write_string("\nNetwork Stack Test Complete!\n");
-    vga_write_string("Note: Full WebSocket testing requires proper network configuration.\n");
-    vga_write_string("Current test validates core network stack components.\n");
+    shell_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    shell_write_string("\nNetwork Stack Test Complete!\n");
+    shell_write_string("Note: Full WebSocket testing requires proper network configuration.\n");
+    shell_write_string("Current test validates core network stack components.\n");
     
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    shell_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+}
+
+void cmd_search(int argc, char* argv[]) {
+    if (argc < 2) {
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("Usage: search <query>\n");
+        return;
+    }
+    
+    if (terminal_window) {
+        gui_terminal_search(terminal_window, argv[1]);
+        shell_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        shell_write_string("Searching for: ");
+        shell_write_string(argv[1]);
+        shell_write_string("\n");
+    } else {
+        shell_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        shell_write_string("No terminal window available\n");
+    }
 }
