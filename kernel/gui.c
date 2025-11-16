@@ -397,8 +397,7 @@ void gui_handle_input(char c) {
 
 // Placeholder for mouse input (future enhancement)
 void gui_process_mouse(int x, int y, int button) {
-    int prev_x = cursor_x;
-    int prev_y = cursor_y;
+    // Update cursor position
     cursor_x = x;
     cursor_y = y;
     

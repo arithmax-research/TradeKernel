@@ -163,51 +163,76 @@ void display_loading_screen(void) {
 void kernel_main(void) {
     // Initialize serial port for debugging
     serial_init();
-    serial_write_string("Serial initialized\n");
+    serial_write_string("\n=== TradeKernel Boot Sequence ===\n");
+    serial_write_string("[STAGE 1] Serial initialized\n");
+    
+    // Test VGA memory is accessible
+    volatile unsigned short *video = (unsigned short*)0xB8000;
+    video[0] = ('T' | (0x0F << 8)); // White 'T' on black
+    serial_write_string("[STAGE 2] VGA memory test passed\n");
     
     // Display loading screen
+    serial_write_string("[STAGE 3] Displaying loading screen\n");
     display_loading_screen();
+    serial_write_string("[STAGE 3] Loading screen displayed\n");
     
     // Initialize VGA text mode
+    serial_write_string("[STAGE 4] Initializing VGA\n");
     vga_init();
+    serial_write_string("[STAGE 4] VGA initialized\n");
     
     // Initialize memory management
+    serial_write_string("[STAGE 5] Initializing memory management\n");
     memory_init();
+    serial_write_string("[STAGE 5] Memory initialized\n");
     
     // Initialize interrupts first
+    serial_write_string("[STAGE 6] Initializing interrupts\n");
     interrupts_init();
+    serial_write_string("[STAGE 6] Interrupts initialized\n");
     
     // Initialize paging system (after interrupts for page fault handling)
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Initializing virtual memory...\n");
+    serial_write_string("[STAGE 7] Initializing paging\n");
     paging_init();
+    serial_write_string("[STAGE 7] Paging initialized\n");
     // Note: Not enabling paging yet - keeping identity mapping for stability
     
     // Initialize process management
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Initializing process management...\n");
+    serial_write_string("[STAGE 8] Initializing process management\n");
     process_init();
     scheduler_init();
     syscalls_init(); // System calls enabled
     ipc_init(); // IPC enabled
+    serial_write_string("[STAGE 8] Process management initialized\n");
     
     // Initialize GUI framework
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Initializing GUI framework...\n");
+    serial_write_string("[STAGE 9] Initializing GUI framework\n");
     gui_init();
+    serial_write_string("[STAGE 9] GUI framework initialized\n");
     
     // Initialize mouse
     // mouse_init(); // TEMPORARILY DISABLED
     
     // Create terminal window
+    serial_write_string("[STAGE 10] Creating terminal window\n");
     window_t* term_win = gui_create_terminal_window(5, 3, 70, 20, "TradeKernel Terminal");
+    serial_write_string("[STAGE 10] Terminal window created\n");
     gui_show_window(term_win);
+    serial_write_string("[STAGE 10] Terminal window shown\n");
     
     // Set terminal window for shell output
     shell_set_terminal_window(term_win);
     
+    serial_write_string("[STAGE 11] Initializing file system\n");
     vga_write_string("Initializing file system...\n");
     int fs_result = fs_init();
+    serial_write_string("[STAGE 11] File system initialized\n");
     if (fs_result == FS_ERROR_NOT_FOUND) {
         vga_write_string("No filesystem found. Formatting disk...\n");
         fs_result = fs_format();
@@ -255,8 +280,7 @@ void kernel_main(void) {
     }
     
     // Initialize network stack
-    
-    // Initialize network stack
+    serial_write_string("[STAGE 12] Initializing network stack\n");
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Initializing network stack...\n");
     if (rtl8139_init(0xC000) == NET_SUCCESS) {
@@ -328,11 +352,14 @@ void kernel_main(void) {
     vga_write_string("Timer interrupts are working in the background.\n\n");
     
     // Boot Splash Screen - Show GUI with system information
+    serial_write_string("[STAGE 13] Preparing GUI boot splash\n");
     vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
     vga_write_string("Launching TradeKernel GUI Boot Splash...\n\n");
     
     // Clear screen for boot splash
+    serial_write_string("[STAGE 13] Clearing screen for splash\n");
     vga_clear();
+    serial_write_string("[STAGE 13] Screen cleared\n");
     
     // Create main boot splash window
     window_t* splash_window = gui_create_window(3, 1, 74, 22, "TradeKernel OS v1.3 - System Boot");
@@ -473,6 +500,8 @@ void kernel_main(void) {
     vga_write_string("\nShell ready - you can now type commands!\n");
     
     // Keep the kernel alive
+    serial_write_string("[STAGE 14] Kernel entering main loop - all systems operational\n");
+    serial_write_string("=== Boot Complete - System Running ===\n");
     while (1) {
         __asm__ volatile ("hlt");
     }

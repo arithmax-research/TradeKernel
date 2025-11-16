@@ -76,10 +76,14 @@ protected_mode:
     mov ss, ax
     mov esp, 0x90000    ; Set stack pointer
 
-    ; Call kernel main function
-    call 0x10000        ; Jump to kernel entry point
+    ; Write "B" to VGA memory to show bootloader reached here
+    mov dword [0xB8000], 0x0F420F42  ; "BB" in white on black (B = Bootloader)
 
-    ; If kernel returns, halt
+    ; Jump to kernel entry point (_start at 0x1000C after 12-byte multiboot header)
+    jmp 0x08:0x1000C    ; Far jump: code segment 0x08, offset 0x1000C
+
+    ; Should never reach here
+    mov dword [0xB8004], 0x0F520F52  ; "RR" in white (error if we get here)
     hlt
 
 ; Global Descriptor Table

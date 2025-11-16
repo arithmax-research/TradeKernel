@@ -76,6 +76,7 @@ WEBSOCKET_OBJ = $(BUILD_DIR)/websocket.o
 
 # Target files
 KERNEL_BIN = $(BUILD_DIR)/kernel.bin
+KERNEL_FLAT = $(BUILD_DIR)/kernel.flat
 BOOT_BIN = $(BUILD_DIR)/boot.bin
 OS_IMG = $(BUILD_DIR)/tradeos.img
 
@@ -168,22 +169,28 @@ $(WEBSOCKET_OBJ): $(WEBSOCKET_C) | $(BUILD_DIR)
 $(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(MOUSE_OBJ) $(MEMORY_OBJ) $(PAGING_OBJ) $(PAGING_ASM_OBJ) $(INTERRUPTS_OBJ) $(SHELL_OBJ) $(FS_OBJ) $(DISK_OBJ) $(INTERRUPT_ASM_OBJ) $(CONTEXT_SWITCH_OBJ) $(SYSCALL_ASM_OBJ) $(PROCESS_OBJ) $(SCHEDULER_OBJ) $(SYSCALLS_OBJ) $(IPC_OBJ) $(GUI_OBJ) $(ETH_OBJ) $(IP_OBJ) $(TCP_OBJ) $(SOCKET_OBJ) $(WEBSOCKET_OBJ)
 	$(LD) $(LDFLAGS) $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(MOUSE_OBJ) $(MEMORY_OBJ) $(PAGING_OBJ) $(PAGING_ASM_OBJ) $(INTERRUPTS_OBJ) $(SHELL_OBJ) $(FS_OBJ) $(DISK_OBJ) $(INTERRUPT_ASM_OBJ) $(CONTEXT_SWITCH_OBJ) $(SYSCALL_ASM_OBJ) $(PROCESS_OBJ) $(SCHEDULER_OBJ) $(SYSCALLS_OBJ) $(IPC_OBJ) $(GUI_OBJ) $(ETH_OBJ) $(IP_OBJ) $(TCP_OBJ) $(SOCKET_OBJ) $(WEBSOCKET_OBJ) -o $(KERNEL_BIN)
 
+# Convert ELF to flat binary
+$(KERNEL_FLAT): $(KERNEL_BIN)
+	objcopy -O binary $(KERNEL_BIN) $(KERNEL_FLAT)
+
 # Create OS image - hard disk format
-$(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
+$(OS_IMG): $(BOOT_BIN) $(KERNEL_FLAT)
 	# Create a 10MB hard disk image
 	dd if=/dev/zero of=$(OS_IMG) bs=1M count=10
 	# Write bootloader to first sector (MBR)
 	dd if=$(BOOT_BIN) of=$(OS_IMG) bs=512 count=1 conv=notrunc
 	# Write kernel starting from second sector
-	dd if=$(KERNEL_BIN) of=$(OS_IMG) bs=512 seek=1 conv=notrunc
+	dd if=$(KERNEL_FLAT) of=$(OS_IMG) bs=512 seek=1 conv=notrunc
 
-# Run in QEMU - with disk image for filesystem support
+# Run in QEMU - with disk image for filesystem support and serial output
 run: $(KERNEL_BIN)
-	qemu-system-i386 -drive format=raw,file=$(OS_IMG),if=ide -m 16M
+	qemu-system-i386 -no-user-config -drive format=raw,file=$(OS_IMG),if=ide -m 16M \
+		-vga std -display none -serial file:serial.log
 
 # Run with disk image (traditional boot)
 run-disk: $(OS_IMG)
-	qemu-system-i386 -drive format=raw,file=$(OS_IMG),if=ide -m 16M
+	qemu-system-i386 -no-user-config -drive format=raw,file=$(OS_IMG),if=ide -m 16M \
+		-vga std -display none -serial file:serial.log
 
 # Run in QEMU with debugging
 debug: $(OS_IMG)

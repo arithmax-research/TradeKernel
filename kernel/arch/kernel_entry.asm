@@ -18,6 +18,9 @@ extern kernel_main
 
 global _start
 _start:
+    ; Immediate VGA test - write "K" to top-left corner
+    mov dword [0xB8000], 0x0F4B0F4B  ; "KK" in white on black
+    
     ; Set up stack
     mov esp, stack_top
     
