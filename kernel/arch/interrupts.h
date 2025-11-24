@@ -35,7 +35,6 @@ void set_idt_entry(int num, uint32_t handler, uint16_t selector, uint8_t flags);
 void keyboard_handler(void);
 void timer_handler(void);
 void page_fault_interrupt_handler(void);
-void mouse_handler(void);
 
 // External page fault handler (from paging.c)
 extern void page_fault_handler(uint32_t error_code, uint32_t virtual_addr);
@@ -45,7 +44,6 @@ extern void keyboard_interrupt_wrapper(void);
 extern void timer_interrupt_wrapper(void);
 extern void page_fault_interrupt_wrapper(void);
 extern void syscall_interrupt_handler(void);
-extern void mouse_interrupt_wrapper(void);
 
 // Timing functions
 uint32_t get_ticks(void);

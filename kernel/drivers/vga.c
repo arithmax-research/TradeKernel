@@ -1,12 +1,9 @@
 #include "vga.h"
-#include "../net/eth.h" // for outb
 
 static volatile uint16_t* vga_buffer = (uint16_t*)VGA_MEMORY;
-static volatile uint8_t* vga_graphics_buffer = (uint8_t*)VGA_GRAPHICS_MEMORY;
 static size_t vga_row = 0;
 static size_t vga_column = 0;
 static uint8_t vga_color = 0;
-static int vga_mode = 0; // 0 = text, 1 = graphics
 
 static inline uint8_t vga_entry_color(vga_color_t fg, vga_color_t bg) {
     return fg | bg << 4;
@@ -24,22 +21,14 @@ void vga_init(void) {
 }
 
 void vga_clear(void) {
-    if (vga_mode == 1) {
-        // Graphics mode: clear to black
-        for (int i = 0; i < VGA_GRAPHICS_WIDTH * VGA_GRAPHICS_HEIGHT; i++) {
-            vga_graphics_buffer[i] = 0;
+    for (size_t y = 0; y < VGA_HEIGHT; y++) {
+        for (size_t x = 0; x < VGA_WIDTH; x++) {
+            const size_t index = y * VGA_WIDTH + x;
+            vga_buffer[index] = vga_entry(' ', vga_color);
         }
-    } else {
-        // Text mode
-        for (size_t y = 0; y < VGA_HEIGHT; y++) {
-            for (size_t x = 0; x < VGA_WIDTH; x++) {
-                const size_t index = y * VGA_WIDTH + x;
-                vga_buffer[index] = vga_entry(' ', vga_color);
-            }
-        }
-        vga_row = 0;
-        vga_column = 0;
     }
+    vga_row = 0;
+    vga_column = 0;
 }
 
 void vga_set_color(vga_color_t fg, vga_color_t bg) {
@@ -74,7 +63,6 @@ static void vga_scroll(void) {
 }
 
 void vga_putchar(char c) {
-    if (vga_mode == 1) return; // No text output in graphics mode
     if (c == '\n') {
         vga_column = 0;
         if (++vga_row == VGA_HEIGHT) {
@@ -137,37 +125,4 @@ void vga_write_string(const char* str) {
     while (*str) {
         vga_putchar(*str++);
     }
-}
-
-// Graphics mode functions
-void vga_set_graphics_mode(void) {
-    // Set VGA mode 13h (320x200x256)
-    __asm__ volatile (
-        "mov $0x13, %%ax\n"
-        "int $0x10\n"
-        ::: "ax"
-    );
-    vga_mode = 1;
-}
-
-void vga_set_text_mode(void) {
-    // Set VGA mode 3 (80x25 text)
-    __asm__ volatile (
-        "mov $0x03, %%ax\n"
-        "int $0x10\n"
-        ::: "ax"
-    );
-    vga_mode = 0;
-}
-
-void vga_put_pixel(int x, int y, uint8_t color) {
-    if (vga_mode != 1) return;
-    if (x < 0 || x >= VGA_GRAPHICS_WIDTH || y < 0 || y >= VGA_GRAPHICS_HEIGHT) return;
-    vga_graphics_buffer[y * VGA_GRAPHICS_WIDTH + x] = color;
-}
-
-uint8_t vga_get_pixel(int x, int y) {
-    if (vga_mode != 1) return 0;
-    if (x < 0 || x >= VGA_GRAPHICS_WIDTH || y < 0 || y >= VGA_GRAPHICS_HEIGHT) return 0;
-    return vga_graphics_buffer[y * VGA_GRAPHICS_WIDTH + x];
 }

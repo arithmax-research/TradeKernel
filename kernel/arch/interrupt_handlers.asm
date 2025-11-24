@@ -7,13 +7,11 @@ extern timer_handler
 extern keyboard_handler
 extern page_fault_interrupt_handler
 extern network_handler
-extern mouse_handler
 
 global timer_interrupt_wrapper
 global keyboard_interrupt_wrapper
 global page_fault_interrupt_wrapper
 global network_interrupt_wrapper
-global mouse_interrupt_wrapper
 
 timer_interrupt_wrapper:
     pusha                   ; Save all general-purpose registers
@@ -37,11 +35,5 @@ page_fault_interrupt_wrapper:
 network_interrupt_wrapper:
     pusha                   ; Save all general-purpose registers
     call network_handler    ; Call C handler
-    popa                   ; Restore all general-purpose registers
-    iret                   ; Return from interrupt
-
-mouse_interrupt_wrapper:
-    pusha                   ; Save all general-purpose registers
-    call mouse_handler      ; Call C handler
     popa                   ; Restore all general-purpose registers
     iret                   ; Return from interrupt

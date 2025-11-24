@@ -4,14 +4,12 @@
 #include "../proc/scheduler.h"
 #include "../proc/syscalls.h" // System calls enabled
 #include "../net/eth.h" // Network interrupts and I/O functions
-#include "../drivers/mouse.h" // Mouse driver
 
 // Interrupt handler extern declarations
 extern void timer_interrupt_wrapper(void);
 extern void keyboard_interrupt_wrapper(void);
 extern void page_fault_interrupt_wrapper(void);
 extern void network_interrupt_wrapper(void);
-extern void mouse_interrupt_wrapper(void);
 
 // Simple tick counter for timing
 static volatile uint32_t system_ticks = 0;
@@ -53,9 +51,9 @@ static void init_pic(void) {
     outb(PIC2_DATA, 0x02);    // PIC2 is slave
     outb(PIC2_DATA, 0x01);    // 8086 mode
     
-    // Enable keyboard, timer, network, and mouse interrupts
+    // Enable keyboard, timer, and network interrupts
     outb(PIC1_DATA, 0xE4); // Enable IRQ 0 (timer), IRQ 1 (keyboard), disable others on PIC1
-    outb(PIC2_DATA, 0xEB); // Enable IRQ 11 (network), IRQ 12 (mouse) on PIC2, disable others
+    outb(PIC2_DATA, 0xFB); // Enable IRQ 11 (network) on PIC2, disable others
 }
 
 void interrupts_init(void) {
@@ -74,7 +72,6 @@ void interrupts_init(void) {
     set_idt_entry(0x0E, (uint32_t)page_fault_interrupt_wrapper, 0x08, 0x8E); // Page fault
     set_idt_entry(0x80, (uint32_t)syscall_interrupt_handler, 0x08, 0xEE); // System calls (user callable)
     set_idt_entry(0x2B, (uint32_t)network_interrupt_wrapper, 0x08, 0x8E); // Network (RTL8139)
-    set_idt_entry(0x2C, (uint32_t)mouse_interrupt_wrapper, 0x08, 0x8E); // Mouse
     
     // Initialize PIC
     init_pic();
@@ -143,13 +140,5 @@ void network_handler(void) {
     rtl8139_interrupt_handler();
     
     // Send End of Interrupt to PIC2 (since network is on PIC2)
-    outb(PIC2_COMMAND, 0x20);
-}
-
-// Mouse interrupt handler
-void mouse_handler(void) {
-    mouse_interrupt_handler();
-    
-    // Send End of Interrupt to PIC2 (mouse is on PIC2)
     outb(PIC2_COMMAND, 0x20);
 }

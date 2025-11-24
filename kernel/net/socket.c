@@ -1,5 +1,4 @@
 #include "socket.h"
-#include "tcp.h"
 #include "../mm/memory.h"
 #include "../drivers/vga.h"
 
@@ -42,15 +41,12 @@ int socket_bind(int sockfd, const sockaddr_t* addr) {
         return -1;
     }
 
-    /* Safely copy packed sockaddr_t into an unpacked sockaddr_in_t to avoid
-       unaligned pointer casts (sockaddr_t in net.h is packed). */
-    sockaddr_in_t addr_unpacked;
-    memcpy(&addr_unpacked, addr, sizeof(sockaddr_in_t));
+    const sockaddr_in_t* addr_in = (const sockaddr_in_t*)addr;
 
     if (sock->type == SOCK_STREAM) {
         // Create TCP connection in LISTEN state
-        sock->data.tcp_conn = tcp_create_connection(&addr_unpacked.sin_addr,
-                                                    addr_unpacked.sin_port, addr_unpacked.sin_port);
+        sock->data.tcp_conn = tcp_create_connection(&addr_in->sin_addr,
+                                                    addr_in->sin_port, addr_in->sin_port);
         if (!sock->data.tcp_conn) {
             return -1;
         }
@@ -67,8 +63,6 @@ int socket_listen(int sockfd, int backlog) {
         return -1;
     }
 
-    (void)backlog; // currently unused
-
     // TCP is already in LISTEN state from bind
     return 0;
 }
@@ -83,14 +77,11 @@ int socket_accept(int sockfd, sockaddr_t* addr) {
     // For now, just return the same socket
     // In a real implementation, we'd create a new socket for the accepted connection
     if (addr) {
-        /* Fill in peer address via a local unpacked struct then copy back to
-           the (packed) sockaddr_t provided by the caller. This avoids
-           unaligned pointer casts and respects packed layout. */
-        sockaddr_in_t out;
-        out.sin_family = AF_INET;
-        out.sin_port = sock->data.tcp_conn->remote_port;
-        out.sin_addr = sock->data.tcp_conn->remote_ip;
-        memcpy(addr, &out, sizeof(sockaddr_in_t));
+        // Fill in peer address
+        sockaddr_in_t* addr_in = (sockaddr_in_t*)addr;
+        addr_in->sin_family = AF_INET;
+        addr_in->sin_port = sock->data.tcp_conn->remote_port;
+        addr_in->sin_addr = sock->data.tcp_conn->remote_ip;
     }
 
     return sockfd;
@@ -103,14 +94,12 @@ int socket_connect(int sockfd, const sockaddr_t* addr) {
         return -1;
     }
 
-    /* Safely copy packed sockaddr_t into an unpacked sockaddr_in_t */
-    sockaddr_in_t addr_unpacked;
-    memcpy(&addr_unpacked, addr, sizeof(sockaddr_in_t));
+    const sockaddr_in_t* addr_in = (const sockaddr_in_t*)addr;
 
     if (sock->type == SOCK_STREAM) {
         // Create TCP connection
-        sock->data.tcp_conn = tcp_create_connection(&addr_unpacked.sin_addr,
-                                                    addr_unpacked.sin_port, 0); // Auto-assign local port
+        sock->data.tcp_conn = tcp_create_connection(&addr_in->sin_addr,
+                                                    addr_in->sin_port, 0); // Auto-assign local port
         if (!sock->data.tcp_conn) {
             return -1;
         }
@@ -143,7 +132,6 @@ int socket_send(int sockfd, const void* buf, uint32_t len) {
 
 // Receive data
 int socket_recv(int sockfd, void* buf, uint32_t len) {
-    (void)sockfd; (void)buf; (void)len; // suppress unused-parameter warnings for placeholder
     // For now, this is a placeholder
     // In a real implementation, we'd have a receive buffer
     return 0;
@@ -180,7 +168,6 @@ int socket_close(int sockfd) {
 
 // Get socket by file descriptor
 socket_t* socket_get(int sockfd) {
-    (void)sockfd; // placeholder until FD table is implemented
     // For now, just return the first socket
     // In a real implementation, we'd have a proper FD table
     return sockets;
@@ -193,5 +180,5 @@ int socket_alloc_fd(void) {
 
 // Free file descriptor
 void socket_free_fd(int fd) {
-    (void)fd; // Placeholder - in real implementation, mark FD as free
+    // Placeholder - in real implementation, mark FD as free
 }
