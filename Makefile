@@ -6,7 +6,7 @@ AS = nasm
 LD = ld
 
 # Compiler flags
-CFLAGS = -m32 -ffreestanding -fno-stack-protector -fno-builtin -nostdlib -nostdinc -Wall -Wextra -c
+CFLAGS = -m32 -ffreestanding -fno-stack-protector -fno-builtin -nostdlib -nostdinc -Wall -Wextra -Wno-address-of-packed-member -c
 ASFLAGS = -f elf32
 LDFLAGS = -m elf_i386 -T kernel/kernel.ld
 

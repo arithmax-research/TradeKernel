@@ -72,27 +72,6 @@ void shell_init(void) {
     vga_write_string("$ ");
 }
 
-// Simple number printing function
-static void print_dec(uint32_t value) {
-    if (value == 0) {
-        vga_putchar('0');
-        return;
-    }
-    
-    char buffer[12];
-    int i = 0;
-    
-    while (value > 0) {
-        buffer[i++] = '0' + (value % 10);
-        value /= 10;
-    }
-    
-    // Reverse the string
-    for (int j = i - 1; j >= 0; j--) {
-        vga_putchar(buffer[j]);
-    }
-}
-
 // Simple string utilities
 static int shell_strlen(const char* str) {
     int len = 0;
@@ -876,6 +855,7 @@ void cmd_testfork(int argc, char* argv[]) {
 
 // TODO: Re-enable when IPC is fixed
 void cmd_testipc(int argc, char* argv[]) {
+    (void)argc; (void)argv;
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Testing Inter-Process Communication...\n");
     
@@ -913,6 +893,7 @@ void cmd_testipc(int argc, char* argv[]) {
 
 // TODO: Re-enable when IPC is fixed
 void cmd_msgtest(int argc, char* argv[]) {
+    (void)argc; (void)argv;
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Testing Message Queues...\n");
     
@@ -937,7 +918,7 @@ void cmd_msgtest(int argc, char* argv[]) {
         test_data.side = 1; // ask
         
         // Copy to message
-        for (int i = 0; i < sizeof(market_data_t); i++) {
+        for (size_t i = 0; i < sizeof(market_data_t); i++) {
             msg.data[i] = ((uint8_t*)&test_data)[i];
         }
         
