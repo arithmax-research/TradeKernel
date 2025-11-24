@@ -158,6 +158,7 @@ uint32_t sys_kill(uint32_t pid, uint32_t signal, uint32_t arg3, uint32_t arg4) {
 }
 
 uint32_t sys_getpid(uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4) {
+    (void)arg1; (void)arg2; (void)arg3; (void)arg4;
     return current_process ? current_process->pid : 0;
 }
 
@@ -180,6 +181,7 @@ uint32_t sys_getpid(uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4) 
 // }
 
 uint32_t sys_yield(uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4) {
+    (void)arg1; (void)arg2; (void)arg3; (void)arg4;
     scheduler_yield();
     return 0;
 }

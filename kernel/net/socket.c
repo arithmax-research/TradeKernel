@@ -1,4 +1,5 @@
 #include "socket.h"
+#include "tcp.h"
 #include "../mm/memory.h"
 #include "../drivers/vga.h"
 
@@ -58,6 +59,7 @@ int socket_bind(int sockfd, const sockaddr_t* addr) {
 
 // Listen for connections
 int socket_listen(int sockfd, int backlog) {
+    (void)backlog;
     socket_t* sock = socket_get(sockfd);
     if (!sock || sock->type != SOCK_STREAM) {
         return -1;
@@ -132,6 +134,7 @@ int socket_send(int sockfd, const void* buf, uint32_t len) {
 
 // Receive data
 int socket_recv(int sockfd, void* buf, uint32_t len) {
+    (void)sockfd; (void)buf; (void)len;
     // For now, this is a placeholder
     // In a real implementation, we'd have a receive buffer
     return 0;
@@ -168,6 +171,7 @@ int socket_close(int sockfd) {
 
 // Get socket by file descriptor
 socket_t* socket_get(int sockfd) {
+    (void)sockfd;
     // For now, just return the first socket
     // In a real implementation, we'd have a proper FD table
     return sockets;
@@ -180,5 +184,6 @@ int socket_alloc_fd(void) {
 
 // Free file descriptor
 void socket_free_fd(int fd) {
+    (void)fd;
     // Placeholder - in real implementation, mark FD as free
 }

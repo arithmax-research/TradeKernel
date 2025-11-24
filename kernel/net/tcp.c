@@ -23,6 +23,7 @@ int tcp_init(void) {
 // Handle incoming TCP packet
 int tcp_handle_packet(const tcp_packet_t* packet, uint32_t len,
                       const ipv4_addr_t* src_ip, const ipv4_addr_t* dst_ip) {
+    (void)len;
     const tcp_header_t* header = &packet->header;
 
     // Find matching connection

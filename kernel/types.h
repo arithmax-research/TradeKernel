@@ -30,4 +30,7 @@ typedef enum {
     true = 1
 } bool;
 
+// Kernel utility functions
+extern void print_dec(uint32_t value);
+
 #endif // TYPES_H

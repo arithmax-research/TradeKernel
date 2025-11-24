@@ -5,8 +5,8 @@
 
 // Global IP state
 static ipv4_addr_t our_ip = {{192, 168, 1, 100}};  // Default IP
-static ipv4_addr_t netmask = {{255, 255, 255, 0}}; // Default netmask
-static ipv4_addr_t gateway = {{192, 168, 1, 1}};   // Default gateway
+static ipv4_addr_t netmask __attribute__((unused)) = {{255, 255, 255, 0}}; // Default netmask
+static ipv4_addr_t gateway __attribute__((unused)) = {{192, 168, 1, 1}};   // Default gateway
 
 // Initialize IP layer
 int ipv4_init(void) {
