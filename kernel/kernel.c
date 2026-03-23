@@ -15,6 +15,7 @@
 #include "net/socket.h"
 #include "net/websocket.h"
 #include "gui.h" // GUI frameworkdrivers/vga.h"
+#include "gfx/framebuffer.h"
 #include "mm/memory.h"
 #include "mm/paging.h"
 #include "arch/interrupts.h"
@@ -138,6 +139,13 @@ void kernel_main(void) {
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     vga_write_string("Initializing GUI framework...\n");
     gui_init();
+
+    // Initialize framebuffer scaffolding (graphics backend abstraction).
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Initializing framebuffer scaffold...\n");
+    fb_init_scaffold();
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    vga_write_string("Framebuffer backend: none (text mode fallback active)\n");
     
     vga_write_string("Initializing file system...\n");
     int fs_result = fs_init();

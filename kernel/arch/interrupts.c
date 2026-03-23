@@ -1,6 +1,7 @@
 #include "interrupts.h"
 #include "../drivers/vga.h"
 #include "../shell.h"
+#include "../gui.h"
 #include "../proc/scheduler.h"
 #include "../proc/syscalls.h" // System calls enabled
 #include "../net/eth.h" // Network interrupts and I/O functions
@@ -123,10 +124,17 @@ void keyboard_handler(void) {
     };
     
     // Only handle key press events (not key release)
-    if (!(scancode & 0x80) && scancode < sizeof(scancode_to_ascii)) {
-        char c = scancode_to_ascii[scancode];
-        if (c != 0) {
-            shell_process_input(c);
+    if (!(scancode & 0x80)) {
+        if (gui_handle_scancode(scancode)) {
+            outb(PIC1_COMMAND, 0x20);
+            return;
+        }
+
+        if (scancode < sizeof(scancode_to_ascii)) {
+            char c = scancode_to_ascii[scancode];
+            if (c != 0) {
+                shell_process_input(c);
+            }
         }
     }
     

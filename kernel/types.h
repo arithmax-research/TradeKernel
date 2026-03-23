@@ -32,5 +32,6 @@ typedef enum {
 
 // Kernel utility functions
 extern void print_dec(uint32_t value);
+extern void print_hex(uint32_t value);
 
 #endif // TYPES_H

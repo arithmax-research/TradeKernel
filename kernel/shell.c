@@ -8,6 +8,8 @@
 #include "proc/syscalls.h" // System calls enabled
 #include "proc/ipc.h" // IPC enabled
 #include "net/websocket.h"
+#include "gui.h"
+#include "gfx/framebuffer.h"
 
 static char command_buffer[MAX_COMMAND_LENGTH];
 static int buffer_pos = 0;
@@ -36,6 +38,9 @@ void cmd_cp(int argc, char* argv[]);
 void cmd_mv(int argc, char* argv[]);
 void cmd_reboot(int argc, char* argv[]);
 void cmd_websocket_test(int argc, char* argv[]);
+void cmd_desktop(int argc, char* argv[]);
+void cmd_fbinfo(int argc, char* argv[]);
+void cmd_fbdemo(int argc, char* argv[]);
 
 // Built-in commands table
 static shell_command_t commands[] = {
@@ -60,16 +65,26 @@ static shell_command_t commands[] = {
     {"cat", "Display file contents", cmd_cat},
     {"cp", "Copy file", cmd_cp},
     {"mv", "Move/rename file", cmd_mv},
+    {"desktop", "Open desktop launcher (F2 to return)", cmd_desktop},
+    {"fbinfo", "Show framebuffer scaffold status", cmd_fbinfo},
+    {"fbdemo", "Run framebuffer gradient demo (Mode13 scaffold)", cmd_fbdemo},
     {"reboot", "Restart the system", cmd_reboot},
     {"wstest", "Test WebSocket connection to Binance", cmd_websocket_test},
+    {NULL, NULL, NULL},
 };
 
 void shell_init(void) {
     buffer_pos = 0;
     command_buffer[0] = '\0';
-    
+
+    vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    vga_write_string("trade");
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_write_string("$ ");
+    vga_write_string("@");
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("kernel");
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    vga_write_string(":~$ ");
 }
 
 // Simple string utilities
@@ -127,8 +142,14 @@ void shell_process_input(char c) {
         
         // Reset for next command
         buffer_pos = 0;
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("trade");
         vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-        vga_write_string("$ ");
+        vga_write_string("@");
+        vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+        vga_write_string("kernel");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        vga_write_string(":~$ ");
     } else if (c == '\b') {
         // Backspace
         if (buffer_pos > 0) {
@@ -736,6 +757,75 @@ void cmd_mv(int argc, char* argv[]) {
         vga_write_string("Failed to move file\n");
         // Clean up the incomplete destination file
         fs_delete_file(dst_path);
+    }
+}
+
+void cmd_desktop(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+    gui_enter_desktop();
+}
+
+void cmd_fbinfo(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+
+    const framebuffer_info_t* fb = fb_get_info();
+
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Framebuffer Scaffold:\n");
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+
+    vga_write_string("  Available: ");
+    vga_write_string(fb->available ? "yes\n" : "no\n");
+
+    vga_write_string("  Backend: ");
+    if (fb->backend == FB_BACKEND_NONE) {
+        vga_write_string("none\n");
+    } else if (fb->backend == FB_BACKEND_LINEAR) {
+        vga_write_string("linear\n");
+    } else if (fb->backend == FB_BACKEND_MODE13) {
+        vga_write_string("mode13-scaffold\n");
+    } else {
+        vga_write_string("unknown\n");
+    }
+
+    vga_write_string("  Address: ");
+    print_hex(fb->phys_addr);
+    vga_write_string("\n");
+
+    vga_write_string("  Resolution: ");
+    print_dec(fb->width);
+    vga_write_string(" x ");
+    print_dec(fb->height);
+    vga_write_string("\n");
+
+    vga_write_string("  Pitch: ");
+    print_dec(fb->pitch);
+    vga_write_string(" bytes\n");
+
+    vga_write_string("  BPP: ");
+    print_dec(fb->bpp);
+    vga_write_string("\n");
+}
+
+void cmd_fbdemo(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    vga_write_string("Running framebuffer scaffold demo...\n");
+
+    if (!fb_is_available()) {
+        fb_try_enable_mode13_scaffold();
+    }
+
+    if (fb_is_available()) {
+        fb_demo_gradient();
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_write_string("Demo wrote to framebuffer memory.\n");
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        vga_write_string("Note: Visible output requires a real graphics mode switch in boot code.\n");
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_write_string("Framebuffer backend unavailable.\n");
     }
 }
 

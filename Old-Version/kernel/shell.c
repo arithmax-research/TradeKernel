@@ -62,6 +62,7 @@ static shell_command_t commands[] = {
     {"mv", "Move/rename file", cmd_mv},
     {"reboot", "Restart the system", cmd_reboot},
     {"wstest", "Test WebSocket connection to Binance", cmd_websocket_test},
+    {NULL, NULL, NULL},
 };
 
 void shell_init(void) {

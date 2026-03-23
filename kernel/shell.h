@@ -40,5 +40,8 @@ void cmd_procinfo(int argc, char* argv[]);
 void cmd_testfork(int argc, char* argv[]);
 void cmd_testipc(int argc, char* argv[]);
 void cmd_msgtest(int argc, char* argv[]);
+void cmd_desktop(int argc, char* argv[]);
+void cmd_fbinfo(int argc, char* argv[]);
+void cmd_fbdemo(int argc, char* argv[]);
 
 #endif // SHELL_H

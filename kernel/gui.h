@@ -13,6 +13,8 @@
 // GUI colors
 #define GUI_COLOR_TITLE_BAR_FG VGA_COLOR_WHITE
 #define GUI_COLOR_TITLE_BAR_BG VGA_COLOR_BLUE
+#define GUI_COLOR_TITLE_BAR_UNFOCUSED_FG VGA_COLOR_LIGHT_GREY
+#define GUI_COLOR_TITLE_BAR_UNFOCUSED_BG VGA_COLOR_DARK_GREY
 #define GUI_COLOR_WINDOW_FG VGA_COLOR_LIGHT_GREY
 #define GUI_COLOR_WINDOW_BG VGA_COLOR_BLACK
 #define GUI_COLOR_BORDER_FG VGA_COLOR_LIGHT_CYAN
@@ -20,6 +22,10 @@
 #define GUI_COLOR_BUTTON_BG VGA_COLOR_LIGHT_GREY
 #define GUI_COLOR_BUTTON_ACTIVE_FG VGA_COLOR_WHITE
 #define GUI_COLOR_BUTTON_ACTIVE_BG VGA_COLOR_BLUE
+#define GUI_COLOR_DESKTOP_FG VGA_COLOR_LIGHT_CYAN
+#define GUI_COLOR_DESKTOP_BG VGA_COLOR_BLUE
+#define GUI_COLOR_PANEL_FG VGA_COLOR_WHITE
+#define GUI_COLOR_PANEL_BG VGA_COLOR_DARK_GREY
 
 // Widget types
 typedef enum {
@@ -76,6 +82,10 @@ void gui_draw_widget(widget_t* widget, window_t* window);
 void gui_redraw_all(void);
 
 void gui_handle_input(char c);
+int gui_handle_scancode(uint8_t scancode);
+void gui_enter_desktop(void);
+void gui_exit_desktop(void);
+int gui_is_desktop_active(void);
 void gui_process_mouse(int x, int y, int button); // Placeholder for future mouse support
 
 #endif // GUI_H
